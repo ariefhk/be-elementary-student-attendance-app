@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HOLIDAY
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  PARENT
+}
+
+enum GENDER {
+  P
+  L
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  photo     String?
+  email     String   @unique
+  password  String
+  role      Role     @default(ADMIN)
+  token     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  teacher   Teacher?
+  parent    Parent?
+
+  @@map("users")
+}
+
+model Teacher {
+  id        Int      @id @default(autoincrement())
+  nip       String?
+  address   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  userId    Int      @unique @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class     Class[]
+
+  @@map("teachers")
+}
+
+model Parent {
+  id        Int       @id @default(autoincrement())
+  address   String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  userId    Int       @unique @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  student   Student[]
+
+  @@map("parents")
+}
+
+model Student {
+  id           Int            @id @default(autoincrement())
+  name         String
+  nisn         String?
+  email        String?
+  no_telp      String?
+  gender       GENDER
+  parentId     Int?           @map("parent_id")
+  parent       Parent?        @relation(fields: [parentId], references: [id])
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  attendance   Attendance[]
+  studentClass StudentClass[]
+
+  @@map("students")
+}
+
+model Class {
+  id           Int            @id @default(autoincrement())
+  name         String
+  teacherId    Int?           @map("teacher_id")
+  teacher      Teacher?       @relation(fields: [teacherId], references: [id])
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  attendance   Attendance[]
+  studentClass StudentClass[]
+
+  @@map("classes")
+}
+
+model StudentClass {
+  studentId Int
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId   Int
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@id([studentId, classId])
+  @@map("student_classes")
+}
+
+model Attendance {
+  id        Int              @id @default(autoincrement())
+  date      DateTime
+  status    AttendanceStatus
+  studentId Int              @map("student_id")
+  student   Student          @relation(fields: [studentId], references: [id])
+  classId   Int              @map("class_id")
+  class     Class            @relation(fields: [classId], references: [id])
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  @@index([date, studentId, classId])
+  @@map("attendances")
+}
