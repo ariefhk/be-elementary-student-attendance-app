@@ -23,6 +23,7 @@ export class UserService {
     if (!user) {
       throw new APIError(API_STATUS_CODE.NOT_FOUND, "User not found");
     }
+    return user;
   }
 
   static async findAll(request) {
@@ -202,6 +203,7 @@ export class UserService {
           ...(updatedUser.role === "TEACHER" ? { nip: parentOrTeacherDetail?.nip ?? null } : {}),
           address: parentOrTeacherDetail?.address ?? null,
           role: updatedUser.role,
+          token: updatedUser.token,
           createdAt: updatedUser.createdAt,
         };
       } catch (error) {
@@ -221,6 +223,7 @@ export class UserService {
       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "User id is required");
     }
 
+    // Check if user is existed
     const existedUser = await this.checkUserMustBeExist(userId);
 
     const updateUser = await db.user.update({
@@ -243,7 +246,6 @@ export class UserService {
           userId: updateUser.id,
         },
         data: {
-          id: true,
           address: address,
         },
       });
@@ -253,7 +255,6 @@ export class UserService {
           userId: updateUser.id,
         },
         data: {
-          id: true,
           nip: nip,
           address: address,
         },
@@ -322,12 +323,6 @@ export class UserService {
 
     await db.$transaction(async (prismaTrans) => {
       try {
-        await prismaTrans.user.delete({
-          where: {
-            id: existedUser.id,
-          },
-        });
-
         if (existedUser.role === "PARENT") {
           await prismaTrans.parent.delete({
             where: {
@@ -341,6 +336,11 @@ export class UserService {
             },
           });
         }
+        await prismaTrans.user.delete({
+          where: {
+            id: existedUser.id,
+          },
+        });
       } catch (error) {
         console.error("Error inside transaction delete user:", error.message);
         throw new APIError(API_STATUS_CODE.BAD_REQUEST, "failed delete user!"); // Re-throw to ensure transaction is rolled back

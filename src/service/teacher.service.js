@@ -2,6 +2,7 @@ import { db } from "../db/connection.js";
 import { APIError } from "../error/api.error.js";
 import { API_STATUS_CODE } from "../helper/status-code.helper.js";
 import { checkAllowedRole, ROLE } from "../helper/check-role.helper.js";
+import { UserService } from "./user.service.js";
 
 export class TeacherService {
   static async checkTeacherMustBeExistByUserId(userId) {
@@ -75,9 +76,11 @@ export class TeacherService {
 
     // Check if name is existed
     if (name) {
-      filter.name = {
-        contains: name,
-        mode: "insensitive",
+      filter.user = {
+        name: {
+          contains: name,
+          mode: "insensitive",
+        },
       };
     }
 
@@ -106,13 +109,13 @@ export class TeacherService {
 
     return teachers.map((user) => {
       return {
-        id: user.id,
-        name: user.user.name,
-        photo: user.user.photo,
-        email: user.user.email,
-        nip: user.nip,
-        address: user.address,
-        createdAt: user.createdAt,
+        id: user?.id,
+        name: user?.user?.name,
+        photo: user?.user?.photo,
+        email: user?.user?.email,
+        nip: user?.nip,
+        address: user?.address,
+        createdAt: user?.createdAt,
       };
     });
   }
@@ -151,5 +154,63 @@ export class TeacherService {
       address: existedTeacher.address,
       createdAt: existedTeacher.createdAt,
     };
+  }
+
+  static async create(request) {
+    const { loggedUserRole, name, email, photo, nip, address, password } = request;
+    checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
+
+    const createTeacherObj = {
+      name: name,
+      email: email,
+      photo: photo,
+      nip: nip,
+      address: address,
+      password: password,
+      role: "TEACHER",
+      loggedUserRole: loggedUserRole,
+    };
+
+    const teacher = await UserService.create(createTeacherObj);
+
+    return teacher;
+  }
+
+  static async update(request) {
+    const { loggedUserRole, teacherId, name, email, photo, nip, address, password } = request;
+    checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
+
+    // check if teacher is existed
+    const existedTeacher = await this.checkTeacherMustBeExist(teacherId);
+
+    const updateTeacherObj = {
+      userId: existedTeacher.user.id,
+      loggedUserRole: loggedUserRole,
+      name: name,
+      email: email,
+      photo: photo,
+      nip: nip,
+      address: address,
+      password: password,
+    };
+
+    const teacher = await UserService.update(updateTeacherObj);
+
+    return teacher;
+  }
+
+  static async delete(request) {
+    const { loggedUserRole, teacherId } = request;
+    checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
+
+    // check if teacher is existed
+    const existedTeacher = await this.checkTeacherMustBeExist(teacherId);
+
+    await UserService.delete({
+      userId: existedTeacher.user.id,
+      loggedUserRole: loggedUserRole,
+    });
+
+    return true;
   }
 }
