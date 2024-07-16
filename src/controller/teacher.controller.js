@@ -73,11 +73,11 @@ export class TeacherController {
 
   static async delete(req, res, next) {
     try {
-      const deleteRequest = {
+      const deleteTeacherRequest = {
         loggedUserRole: req?.loggedUser?.role,
         teacherId: req?.params?.teacherId ? Number(req.params.teacherId) : null,
       };
-      await TeacherService.delete(deleteRequest);
+      await TeacherService.delete(deleteTeacherRequest);
       return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success delete teacher!"));
     } catch (error) {
       next(error);

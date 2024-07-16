@@ -2,6 +2,7 @@ import { db } from "../db/connection.js";
 import { APIError } from "../error/api.error.js";
 import { API_STATUS_CODE } from "../helper/status-code.helper.js";
 import { checkAllowedRole, ROLE } from "../helper/check-role.helper.js";
+import { UserService } from "./user.service.js";
 
 export class ParentService {
   static async checkParentMustBeExistByUserId(userId) {
@@ -73,9 +74,11 @@ export class ParentService {
 
     // Check if name is existed
     if (name) {
-      filter.name = {
-        contains: name,
-        mode: "insensitive",
+      filter.user = {
+        name: {
+          contains: name,
+          mode: "insensitive",
+        },
       };
     }
 
@@ -145,5 +148,61 @@ export class ParentService {
       address: existedParent.address,
       createdAt: existedParent.createdAt,
     };
+  }
+
+  static async create(request) {
+    const { loggedUserRole, name, email, photo, address, password } = request;
+    checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
+
+    const createParentObj = {
+      name: name,
+      email: email,
+      photo: photo,
+      address: address,
+      password: password,
+      role: "PARENT",
+      loggedUserRole: loggedUserRole,
+    };
+
+    const parent = await UserService.create(createParentObj);
+
+    return parent;
+  }
+
+  static async update(request) {
+    const { loggedUserRole, parentId, name, email, photo, address, password } = request;
+    checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
+
+    // check if parent is existed
+    const existedParent = await this.checkParentMustBeExist(parentId);
+
+    const updateParentObj = {
+      userId: existedParent.user.id,
+      loggedUserRole: loggedUserRole,
+      name: name,
+      email: email,
+      photo: photo,
+      address: address,
+      password: password,
+    };
+
+    const parent = await UserService.update(updateParentObj);
+
+    return parent;
+  }
+
+  static async delete(request) {
+    const { loggedUserRole, parentId } = request;
+    checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
+
+    // check if parent is existed
+    const existedParent = await this.checkParentMustBeExist(parentId);
+
+    await UserService.delete({
+      userId: existedParent.user.id,
+      loggedUserRole: loggedUserRole,
+    });
+
+    return true;
   }
 }
