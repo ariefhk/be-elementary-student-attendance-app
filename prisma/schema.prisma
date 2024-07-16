@@ -103,6 +103,7 @@ model Class {
 }
 
 model StudentClass {
+  id        Int      @id @default(autoincrement())
   studentId Int
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   classId   Int
@@ -110,7 +111,6 @@ model StudentClass {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@id([studentId, classId])
   @@map("student_classes")
 }
 
