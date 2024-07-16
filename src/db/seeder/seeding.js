@@ -126,6 +126,7 @@ const deleteAll = async () => {
 };
 
 const createAll = async () => {
+  await deleteAll();
   await createManyAdminSeed();
   await createManyParentSeed();
   await createManyTeacherSeed();
@@ -135,8 +136,6 @@ const createAll = async () => {
 
 async function main() {
   await createAll();
-
-  // await deleteAll();
 
   console.log("Seed data success!");
 }
