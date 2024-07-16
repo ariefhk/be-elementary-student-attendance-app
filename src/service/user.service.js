@@ -200,7 +200,7 @@ export class UserService {
           photo: updatedUser.photo,
           email: updatedUser.email,
           ...(updatedUser.role === "TEACHER" ? { nip: parentOrTeacherDetail?.nip ?? null } : {}),
-          address: parentOrTeacherDetail.address ?? null,
+          address: parentOrTeacherDetail?.address ?? null,
           role: updatedUser.role,
           createdAt: updatedUser.createdAt,
         };
