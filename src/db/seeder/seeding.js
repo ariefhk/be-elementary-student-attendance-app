@@ -71,7 +71,7 @@ const createManyClassSeed = async () => {
       if (teacherRecord) {
         await db.class.create({
           data: {
-            name: `class$-${i}`,
+            name: `class-${i}`,
             teacherId: teacherRecord.id, // Use teacher's id from Teacher table
           },
         });
@@ -96,20 +96,19 @@ const createManyStudentSeed = async () => {
   for (let i = 0; i < 5; i++) {
     const user = await getSpecificUser(`parent-${i}@gmail.com`);
     const parentRecord = await db.parent.findUnique({ where: { userId: user.id } });
-    const classRecord = await getClassByName(`class$-${i}`);
+    const classRecord = await getClassByName(`class-${i}`);
     if (parentRecord && classRecord) {
-      const student = await db.student.create({
+      await db.student.create({
         data: {
           nisn: `nisn-${i}`,
           name: `student-${i}`,
           gender: "P",
           parentId: parentRecord.id, // Use parent's id
-        },
-      });
-      await db.studentClass.create({
-        data: {
-          studentId: student.id,
-          classId: classRecord.id, // Use class's id
+          studentClass: {
+            create: {
+              classId: classRecord.id, // Use class's id
+            },
+          },
         },
       });
     } else {
