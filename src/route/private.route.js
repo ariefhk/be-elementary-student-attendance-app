@@ -38,6 +38,7 @@ privateRouter.get(parentApiPrefix, authMiddleware, ParentController.findAll);
 privateRouter.post(parentApiPrefix, authMiddleware, ParentController.create);
 
 // CLASS ROUTE
+privateRouter.get(classApiPrefix + "/teacher/:teacherId", authMiddleware, ClassController.findByTeacherId);
 privateRouter.get(classApiPrefix + "/:classId", authMiddleware, ClassController.findById);
 privateRouter.put(classApiPrefix + "/:classId", authMiddleware, ClassController.update);
 privateRouter.delete(classApiPrefix + "/:classId", authMiddleware, ClassController.delete);

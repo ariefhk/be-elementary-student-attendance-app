@@ -183,12 +183,17 @@ export class UserService {
               userId: updatedUser.id,
             },
             select: {
+              id: true,
               address: true,
             },
           });
         } else if (updatedUser.role === "TEACHER") {
           parentOrTeacherDetail = await prismaTrans.teacher.findFirst({
             where: {
+              userId: updatedUser.id,
+            },
+            select: {
+              id: true,
               address: true,
               nip: true,
             },
@@ -200,8 +205,19 @@ export class UserService {
           name: updatedUser.name,
           photo: updatedUser.photo,
           email: updatedUser.email,
-          ...(updatedUser.role === "TEACHER" ? { nip: parentOrTeacherDetail?.nip ?? null } : {}),
-          address: parentOrTeacherDetail?.address ?? null,
+          ...(updatedUser.role === "TEACHER"
+            ? {
+                teacherId: parentOrTeacherDetail?.id,
+                nip: parentOrTeacherDetail?.nip ?? null,
+                address: parentOrTeacherDetail?.address ?? null,
+              }
+            : {}),
+          ...(updatedUser.role === "PARENT"
+            ? {
+                parentId: parentOrTeacherDetail?.id,
+                address: parentOrTeacherDetail?.address ?? null,
+              }
+            : {}),
           role: updatedUser.role,
           token: updatedUser.token,
           createdAt: updatedUser.createdAt,

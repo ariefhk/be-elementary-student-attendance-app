@@ -47,6 +47,22 @@ export class ClassController {
     }
   }
 
+  static async findByTeacherId(req, res, next) {
+    try {
+      const findClassByTeacherIdRequest = {
+        loggedUserRole: req.loggedUser.role,
+        teacherId: req?.params?.teacherId ? Number(req?.params?.teacherId) : null,
+      };
+
+      console.log(findClassByTeacherIdRequest);
+      const result = await ClassService.findByTeacherId(findClassByTeacherIdRequest);
+
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Get Class By Teacher Id", result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async update(req, res, next) {
     try {
       const updateClassRequest = {

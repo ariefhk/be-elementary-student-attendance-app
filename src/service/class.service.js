@@ -20,7 +20,26 @@ export class ClassService {
         studentClass: {
           select: {
             class: true,
-            student: true,
+            student: {
+              select: {
+                id: true,
+                nisn: true,
+                name: true,
+                gender: true,
+                email: true,
+                no_telp: true,
+                parent: {
+                  select: {
+                    id: true,
+                    user: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         teacher: {
@@ -133,7 +152,60 @@ export class ClassService {
   static async findById(request) {
     const { classId } = request;
 
-    const existedClass = await this.checkClassMustBeExist(classId);
+    if (!classId) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Class id is required");
+    }
+
+    const existedClass = await db.class.findUnique({
+      where: {
+        id: classId,
+      },
+      select: {
+        id: true,
+        name: true,
+        studentClass: {
+          select: {
+            class: true,
+            student: {
+              select: {
+                id: true,
+                nisn: true,
+                name: true,
+                gender: true,
+                email: true,
+                no_telp: true,
+                parent: {
+                  select: {
+                    id: true,
+                    user: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        teacher: {
+          select: {
+            id: true,
+            nip: true,
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        createdAt: true,
+      },
+    });
+
+    if (!existedClass) {
+      throw new APIError(API_STATUS_CODE.NOT_FOUND, "Class not found");
+    }
 
     return {
       id: existedClass.id,
@@ -154,6 +226,10 @@ export class ClassService {
                 gender: std.student.gender,
                 email: std.student.email,
                 no_telp: std.student.no_telp,
+                parent: {
+                  id: std?.student?.parent?.id ?? null,
+                  name: std?.student?.parent?.user?.name ?? null,
+                },
               };
             })
           : [],
