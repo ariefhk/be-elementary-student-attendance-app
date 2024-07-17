@@ -46,3 +46,5 @@ export function transformDate(dateString) {
 
   return dateObj;
 }
+
+// console.log(getWeekMonToSaturdayDates(2022, 1, 1));

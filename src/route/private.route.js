@@ -6,6 +6,7 @@ import {
   parentApiPrefix,
   classApiPrefix,
   studentApiPrefix,
+  attendanceApiPrefix,
 } from "./prefix.route.js";
 import { UserController } from "../controller/user.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
@@ -13,6 +14,7 @@ import { TeacherController } from "../controller/teacher.controller.js";
 import { ParentController } from "../controller/parent.controller.js";
 import { ClassController } from "../controller/class.controller.js";
 import { StudentController } from "../controller/student.controller.js";
+import { AttendanceController } from "../controller/attendance.controller.js";
 
 const privateRouter = express.Router();
 
@@ -53,5 +55,12 @@ privateRouter.put(studentApiPrefix + "/:studentId", authMiddleware, StudentContr
 privateRouter.delete(studentApiPrefix + "/:studentId", authMiddleware, StudentController.delete);
 privateRouter.get(studentApiPrefix, authMiddleware, StudentController.findAll);
 privateRouter.post(studentApiPrefix, authMiddleware, StudentController.create);
+
+// ATTENDANCE ROUTE
+privateRouter.get(
+  attendanceApiPrefix + "/class/:classId/year/:year/month/:month/week/:week",
+  authMiddleware,
+  AttendanceController.getWeeklyAttendance
+);
 
 export { privateRouter };

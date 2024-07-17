@@ -87,17 +87,8 @@ export class AttendanceService {
       existedStudentClass.forEach((stdClass) => {
         const attendanceForDay = [];
         const key = `${stdClass.student.id}-${date.toISOString().split("T")[0]}`;
-        if (attendanceMap.has(key)) {
-          attendanceForDay.push({
-            date: date.toISOString().split("T")[0],
-            status: attendanceMap.get(key).status,
-          });
-        } else {
-          attendanceForDay.push({
-            date: date.toISOString().split("T")[0],
-            status: "ABSENT",
-          });
-        }
+        const status = attendanceMap.get(key)?.status;
+
         // Find the stdClass in the current week and update their attendance
         let studentEntry = weeklyAttendance.students.find((s) => s.id === stdClass.student.id);
         if (!studentEntry) {
@@ -106,11 +97,49 @@ export class AttendanceService {
             nisn: stdClass.student.nisn,
             name: stdClass.student.name,
             attendance: [],
+            percentagePresent: 0,
+            presentCount: 0, // Temporary property to calculate percentagePresent
+            validDayCount: 0, // Temporary property to calculate percentagePresent
           };
           weeklyAttendance.students.push(studentEntry);
         }
-        studentEntry?.attendance?.push(...attendanceForDay);
+
+        if (attendanceMap.has(key)) {
+          if (status !== "HOLIDAY") {
+            studentEntry.validDayCount++;
+            if (status === "PRESENT") {
+              studentEntry.presentCount++;
+            }
+            attendanceForDay.push({
+              date: date.toISOString().split("T")[0],
+              status,
+            });
+          } else {
+            attendanceForDay.push({
+              date: date.toISOString().split("T")[0],
+              status: "HOLIDAY",
+            });
+          }
+        } else {
+          studentEntry.validDayCount++;
+          attendanceForDay.push({
+            date: date.toISOString().split("T")[0],
+            status: "ABSENT",
+          });
+        }
+
+        studentEntry.attendance.push(...attendanceForDay);
       });
+    });
+
+    // After processing all attendance data, calculate the percentagePresent for each student
+    weeklyAttendance.students.forEach((student) => {
+      if (student.validDayCount > 0) {
+        student.percentagePresent = (student.presentCount / student.validDayCount) * 100;
+      }
+      // Remove the temporary presentCount and validDayCount properties
+      delete student.presentCount;
+      delete student.validDayCount;
     });
 
     return weeklyAttendance;
