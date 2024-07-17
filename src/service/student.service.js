@@ -3,6 +3,7 @@ import { APIError } from "../error/api.error.js";
 import { API_STATUS_CODE } from "../helper/status-code.helper.js";
 import { checkAllowedRole, ROLE } from "../helper/check-role.helper.js";
 import { ParentService } from "./parent.service.js";
+import { ClassService } from "./class.service.js";
 
 export class StudentService {
   static async checkStudentMustBeExist(studentId) {
@@ -23,7 +24,12 @@ export class StudentService {
         no_telp: true,
         studentClass: {
           select: {
-            class: true,
+            class: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
             student: true,
           },
         },
@@ -53,18 +59,18 @@ export class StudentService {
       gender: existedStudent.gender,
       email: existedStudent.email,
       no_telp: existedStudent.no_telp,
-      classCount: existedStudent.studentClass.length,
+      classCount: existedStudent?.studentClass?.length,
       parent: {
-        id: existedStudent.parent.id,
-        name: existedStudent.parent.user.name,
-        address: existedStudent.parent.address,
+        id: existedStudent?.parent?.id,
+        name: existedStudent?.parent?.user?.name,
+        address: existedStudent?.parent?.address,
       },
       classes:
-        existedStudent.studentClass.length > 0
-          ? existedStudent.studentClass.map((std) => {
+        existedStudent?.studentClass?.length > 0
+          ? existedStudent?.studentClass?.map((std) => {
               return {
-                id: std.class.id,
-                name: std.class.name,
+                id: std?.class?.id,
+                name: std?.class?.name,
               };
             })
           : [],
@@ -205,6 +211,84 @@ export class StudentService {
     return existedStudent;
   }
 
+  static async findByClassId(request) {
+    const { classId, name } = request;
+    const filter = {};
+
+    if (name) {
+      filter.student = {
+        name: {
+          contains: name,
+          mode: "insensitive",
+        },
+      };
+    }
+
+    const existedClass = await ClassService.checkClassMustBeExist(classId);
+
+    const studentsClass = await db.studentClass.findMany({
+      where: {
+        classId: existedClass.id,
+        ...filter,
+      },
+      select: {
+        student: {
+          select: {
+            id: true,
+            nisn: true,
+            name: true,
+            gender: true,
+            email: true,
+            no_telp: true,
+            studentClass: true,
+            parent: {
+              select: {
+                id: true,
+                address: true,
+                user: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            createdAt: true,
+          },
+        },
+        class: true,
+      },
+    });
+
+    return {
+      class: {
+        id: existedClass.id,
+        name: existedClass.name,
+      },
+      teacher: {
+        id: existedClass.teacher.id,
+        nip: existedClass.teacher.nip,
+        name: existedClass.teacher.user.name,
+      },
+      students:
+        studentsClass.length > 0
+          ? studentsClass.map((std) => {
+              return {
+                id: std.student.id,
+                nisn: std.student.nisn,
+                name: std.student.name,
+                gender: std.student.gender,
+                email: std.student.email,
+                no_telp: std.student.no_telp,
+                parent: {
+                  id: std.student.parent.id,
+                  name: std.student.parent.user.name,
+                },
+              };
+            })
+          : [],
+    };
+  }
+
   static async create(request) {
     const { name, nisn, email, no_telp, gender, parentId, loggedUserRole } = request;
     checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
@@ -227,7 +311,6 @@ export class StudentService {
         gender: true,
         email: true,
         no_telp: true,
-        // studentClass: true,
         studentClass: true,
         parent: {
           select: {
@@ -261,6 +344,114 @@ export class StudentService {
     };
   }
 
+  static async setStudentToClass(request) {
+    const { studentId, classId, loggedUserRole } = request;
+    checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
+
+    const existedStudent = await StudentService.checkStudentMustBeExist(studentId);
+    const existedClass = await ClassService.checkClassMustBeExist(classId);
+
+    const existedStudentClass = await db.studentClass.findFirst({
+      where: {
+        studentId: existedStudent.id,
+        classId: existedClass.id,
+      },
+    });
+
+    if (existedStudentClass) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Student already in class!");
+    }
+
+    const createStudentClass = await db.studentClass.create({
+      data: {
+        studentId: existedStudent.id,
+        classId: existedClass.id,
+      },
+      select: {
+        student: {
+          select: {
+            id: true,
+            nisn: true,
+            name: true,
+            gender: true,
+            email: true,
+            no_telp: true,
+            studentClass: true,
+            parent: {
+              select: {
+                id: true,
+                address: true,
+                user: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            createdAt: true,
+          },
+        },
+        class: true,
+      },
+    });
+
+    return {
+      class: {
+        id: existedClass.id,
+        name: existedClass.name,
+      },
+      teacher: {
+        id: existedClass.teacher.id,
+        nip: existedClass.teacher.nip,
+        name: existedClass.teacher.user.name,
+      },
+      students:
+        createStudentClass.length > 0
+          ? createStudentClass.map((std) => {
+              return {
+                id: std.student.id,
+                nisn: std.student.nisn,
+                name: std.student.name,
+                gender: std.student.gender,
+                email: std.student.email,
+                no_telp: std.student.no_telp,
+                parent: {
+                  id: std.student.parent.id,
+                  name: std.student.parent.user.name,
+                },
+              };
+            })
+          : [],
+    };
+  }
+
+  static async removeStudentFromClass(request) {
+    const { studentId, classId, loggedUserRole } = request;
+    checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
+
+    const existedStudent = await StudentService.checkStudentMustBeExist(studentId);
+    const existedClass = await ClassService.checkClassMustBeExist(classId);
+
+    const existedStudentClass = await db.studentClass.findFirst({
+      where: {
+        studentId: existedStudent.id,
+        classId: existedClass.id,
+      },
+    });
+
+    if (!existedStudentClass) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Student not in class!");
+    }
+
+    await db.studentClass.delete({
+      where: {
+        id: existedStudentClass.id,
+      },
+    });
+
+    return true;
+  }
+
   static async update(request) {
     const { studentId, name, nisn, email, no_telp, gender, parentId, loggedUserRole } = request;
     checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
@@ -281,7 +472,7 @@ export class StudentService {
         nisn: nisn ?? existedStudent.nisn,
         no_telp: no_telp ?? existedStudent.no_telp,
         gender: gender ?? existedStudent.gender,
-        parentId: parentId ?? existedStudent.parent.id,
+        parentId: parentId ?? existedStudent?.parent?.id,
       },
       select: {
         id: true,
@@ -290,7 +481,17 @@ export class StudentService {
         gender: true,
         email: true,
         no_telp: true,
-        studentClass: true,
+        studentClass: {
+          select: {
+            class: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            student: true,
+          },
+        },
         parent: {
           select: {
             id: true,

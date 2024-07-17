@@ -5,13 +5,58 @@ import { StudentService } from "../service/student.service.js";
 export class StudentController {
   static async findAll(req, res, next) {
     try {
-      const deleteStudentRequest = {
+      const findAllStudentRequest = {
         loggedUserRole: req.loggedUser.role,
         name: req?.query?.name ? req.query.name : null,
       };
 
-      const result = await StudentService.findAll(deleteStudentRequest);
+      const result = await StudentService.findAll(findAllStudentRequest);
       return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Find All Student", result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async findByClassId(req, res, next) {
+    try {
+      const findStudentByClassIdRequest = {
+        loggedUserRole: req.loggedUser.role,
+        classId: req?.params?.classId ? Number(req?.params?.classId) : null,
+        name: req?.query?.name ? req.query.name : null,
+      };
+
+      const result = await StudentService.findByClassId(findStudentByClassIdRequest);
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Find Student By Class", result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async setStudentToClass(req, res, next) {
+    try {
+      const setStudentToClassRequest = {
+        loggedUserRole: req.loggedUser.role,
+        classId: req?.params?.classId ? Number(req?.params?.classId) : null,
+        studentId: req?.params?.studentId ? Number(req?.params?.studentId) : null,
+      };
+
+      const result = await StudentService.setStudentToClass(setStudentToClassRequest);
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Set Student To Class", result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async removeStudentFromClass(req, res, next) {
+    try {
+      const removeStudentFromClassRequest = {
+        loggedUserRole: req.loggedUser.role,
+        classId: req?.params?.classId ? Number(req?.params?.classId) : null,
+        studentId: req?.params?.studentId ? Number(req?.params?.studentId) : null,
+      };
+
+      await StudentService.removeStudentFromClass(removeStudentFromClassRequest);
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Remove Student From Class"));
     } catch (error) {
       next(error);
     }
@@ -48,6 +93,8 @@ export class StudentController {
         no_telp: req?.body?.no_telp,
         gender: req?.body?.gender,
       };
+
+      console.log(updateStudentRequest);
 
       const result = await StudentService.update(updateStudentRequest);
       return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Update Student", result));
