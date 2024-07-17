@@ -1,10 +1,18 @@
 import express from "express";
-import { authApiPrefix, userApiPrefix, teacherApiPrefix, parentApiPrefix, classApiPrefix } from "./prefix.route.js";
+import {
+  authApiPrefix,
+  userApiPrefix,
+  teacherApiPrefix,
+  parentApiPrefix,
+  classApiPrefix,
+  studentApiPrefix,
+} from "./prefix.route.js";
 import { UserController } from "../controller/user.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { TeacherController } from "../controller/teacher.controller.js";
 import { ParentController } from "../controller/parent.controller.js";
 import { ClassController } from "../controller/class.controller.js";
+import { StudentController } from "../controller/student.controller.js";
 
 const privateRouter = express.Router();
 
@@ -35,5 +43,11 @@ privateRouter.put(classApiPrefix + "/:classId", authMiddleware, ClassController.
 privateRouter.delete(classApiPrefix + "/:classId", authMiddleware, ClassController.delete);
 privateRouter.get(classApiPrefix, authMiddleware, ClassController.findAll);
 privateRouter.post(classApiPrefix, authMiddleware, ClassController.create);
+
+// STUDENT ROUTE
+privateRouter.put(studentApiPrefix + "/:studentId", authMiddleware, StudentController.update);
+privateRouter.delete(studentApiPrefix + "/:studentId", authMiddleware, StudentController.delete);
+privateRouter.get(studentApiPrefix, authMiddleware, StudentController.findAll);
+privateRouter.post(studentApiPrefix, authMiddleware, StudentController.create);
 
 export { privateRouter };

@@ -205,6 +205,62 @@ export class StudentService {
     return existedStudent;
   }
 
+  static async create(request) {
+    const { name, nisn, email, no_telp, gender, parentId, loggedUserRole } = request;
+    checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
+
+    const existedParent = await ParentService.checkParentMustBeExist(parentId);
+
+    const createStudent = await db.student.create({
+      data: {
+        name: name,
+        email: email,
+        nisn: nisn,
+        no_telp: no_telp,
+        gender: gender,
+        parentId: existedParent.id,
+      },
+      select: {
+        id: true,
+        nisn: true,
+        name: true,
+        gender: true,
+        email: true,
+        no_telp: true,
+        // studentClass: true,
+        studentClass: true,
+        parent: {
+          select: {
+            id: true,
+            address: true,
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        createdAt: true,
+      },
+    });
+
+    return {
+      id: createStudent.id,
+      nisn: createStudent.nisn,
+      name: createStudent.name,
+      gender: createStudent.gender,
+      email: createStudent.email,
+      no_telp: createStudent.no_telp,
+      classCount: createStudent?.studentClass?.length,
+      parent: {
+        id: createStudent?.parent?.id ?? null,
+        name: createStudent?.parent?.user?.name ?? null,
+        address: createStudent?.parent?.address ?? null,
+      },
+      createdAt: createStudent.createdAt,
+    };
+  }
+
   static async update(request) {
     const { studentId, name, nisn, email, no_telp, gender, parentId, loggedUserRole } = request;
     checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);

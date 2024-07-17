@@ -51,9 +51,9 @@ export class ClassController {
     try {
       const updateClassRequest = {
         loggedUserRole: req.loggedUser.role,
-        name: req?.body?.name,
         teacherId: req?.body?.teacherId ? Number(req?.body?.teacherId) : null,
         classId: req?.params?.classId ? Number(req?.params?.classId) : null,
+        name: req?.body?.name,
       };
 
       const result = await ClassService.update(updateClassRequest);
