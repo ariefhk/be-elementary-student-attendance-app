@@ -233,8 +233,11 @@ export class AttendanceService {
         id: existedClass.teacher?.id,
         name: existedClass.teacher?.user?.name,
       },
-      class: existedClass.name,
-      student_attendance:
+      class: {
+        id: existedClass.id,
+        name: existedClass.name,
+      },
+      attendance:
         attd.length > 0
           ? attd.sort((a, b) => {
               if (a.student.name < b.student.name) return -1;
@@ -247,6 +250,8 @@ export class AttendanceService {
 
   static async createOrUpdateMany(request) {
     const { classId, date, studentAttendances, loggedUserRole } = request;
+
+    console.log(request);
 
     checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
 
@@ -262,18 +267,27 @@ export class AttendanceService {
       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Students not inputted!");
     }
 
+    const existedClass = await ClassService.checkClassMustBeExist(classId);
+
     // Fetch all student IDs for the class
-    const allStudents = await db.student.findMany({
+    const existedStudentClass = await db.studentClass.findMany({
       where: {
-        classId: classId,
+        classId: existedClass.id,
       },
       select: {
-        id: true,
+        class: true,
+        student: {
+          select: {
+            id: true,
+            nisn: true,
+            name: true,
+          },
+        },
       },
     });
 
     // Create a map of student IDs for quick lookup
-    const studentMap = new Map(allStudents.map((student) => [student.id, student]));
+    const studentMap = new Map(existedStudentClass.map((stdClass) => [stdClass.student.id, stdClass]));
 
     // Validate that all student IDs are valid
     studentAttendances.forEach((student) => {
@@ -304,12 +318,10 @@ export class AttendanceService {
 
       if (!studentAttendance) {
         createAttendances.push({
-          data: {
-            status: student.status,
-            date: new Date(date),
-            classId: classId,
-            studentId: student.studentId,
-          },
+          status: student.status,
+          date: new Date(date),
+          classId: classId,
+          studentId: student.studentId,
         });
       } else {
         if (student.status !== undefined && student.status !== studentAttendance.status) {
@@ -320,6 +332,11 @@ export class AttendanceService {
         }
       }
     }
+
+    console.log({
+      updateAttendances,
+      createAttendances,
+    });
 
     // Execute batch updateAttendances
     for (const update of updateAttendances) {

@@ -19,4 +19,35 @@ export class AttendanceController {
       next(error);
     }
   }
+
+  static async getDailyAttendance(req, res, next) {
+    try {
+      const getDailyAttendanceRequest = {
+        loggedUserRole: req.loggedUser.role,
+        classId: req?.params?.classId ? Number(req?.params?.classId) : null,
+        date: req?.params?.date ? req.params.date : null,
+      };
+
+      const result = await AttendanceService.getDailyAttendance(getDailyAttendanceRequest);
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Get Daily Attendance", result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createManyAttendance(req, res, next) {
+    try {
+      const createManyAttendanceRequest = {
+        loggedUserRole: req.loggedUser.role,
+        classId: req?.params?.classId ? Number(req?.params?.classId) : null,
+        date: req?.params?.date ? req.params.date : null,
+        studentAttendances: req?.body?.studentAttendances,
+      };
+
+      const result = await AttendanceService.createOrUpdateMany(createManyAttendanceRequest);
+      return res.status(API_STATUS_CODE.CREATED).json(ResponseHelper.toJson("Success Create Attendance", result));
+    } catch (error) {
+      next(error);
+    }
+  }
 }

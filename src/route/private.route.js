@@ -62,5 +62,7 @@ privateRouter.get(
   authMiddleware,
   AttendanceController.getWeeklyAttendance
 );
+privateRouter.get(attendanceApiPrefix + "/class/:classId/date/:date", authMiddleware, AttendanceController.getDailyAttendance);
+privateRouter.post(attendanceApiPrefix + "/class/:classId/date/:date", authMiddleware, AttendanceController.createManyAttendance);
 
 export { privateRouter };
