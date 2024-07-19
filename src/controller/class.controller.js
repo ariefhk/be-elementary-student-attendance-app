@@ -62,6 +62,20 @@ export class ClassController {
       next(error);
     }
   }
+  static async findByStudentId(req, res, next) {
+    try {
+      const findClassByStudentIdRequest = {
+        loggedUserRole: req.loggedUser.role,
+        studentId: req?.params?.studentId ? Number(req?.params?.studentId) : null,
+      };
+
+      const result = await ClassService.findByStudentId(findClassByStudentIdRequest);
+
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Get Class By Student Id", result));
+    } catch (error) {
+      next(error);
+    }
+  }
 
   static async update(req, res, next) {
     try {

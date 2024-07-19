@@ -140,7 +140,7 @@ export class StudentService {
     });
   }
 
-  static async findByAllParentId(request) {
+  static async findByParentId(request) {
     const { parentId, name, loggedUserRole } = request;
     const filter = {};
     const existedParent = await ParentService.checkParentMustBeExist(parentId);

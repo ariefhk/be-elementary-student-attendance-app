@@ -3,6 +3,7 @@ import { APIError } from "../error/api.error.js";
 import { API_STATUS_CODE } from "../helper/status-code.helper.js";
 import { checkAllowedRole, ROLE } from "../helper/check-role.helper.js";
 import { TeacherService } from "./teacher.service.js";
+import { StudentService } from "./student.service.js";
 
 export class ClassService {
   static async checkClassMustBeExist(classId) {
@@ -147,6 +148,72 @@ export class ClassService {
         createdAt: classes.createdAt,
       };
     });
+  }
+
+  static async findByStudentId(request) {
+    const { studentId, loggedUserRole } = request;
+
+    if (!studentId) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Student id is required");
+    }
+    const existedStudent = await StudentService.checkStudentMustBeExist(studentId);
+
+    const existedStudentClass = await db.studentClass.findMany({
+      where: {
+        studentId: existedStudent.id,
+      },
+      select: {
+        student: {
+          select: {
+            id: true,
+            nisn: true,
+            name: true,
+            gender: true,
+            email: true,
+            no_telp: true,
+          },
+        },
+        class: {
+          select: {
+            id: true,
+            name: true,
+            teacher: {
+              select: {
+                id: true,
+                nip: true,
+                user: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    return {
+      student: {
+        id: existedStudent.id,
+        nisn: existedStudent.nisn,
+        name: existedStudent.name,
+        email: existedStudent.email,
+      },
+      classes: existedStudentClass.map((stdClass) => {
+        return {
+          id: stdClass.class.id,
+          name: stdClass.class.name,
+          teacher: {
+            id: stdClass.class.teacher.id,
+            nip: stdClass.class.teacher.nip,
+            name: stdClass.class.teacher.user.name,
+          },
+          createdAt: stdClass.class.createdAt,
+        };
+      }),
+    };
   }
 
   static async findById(request) {

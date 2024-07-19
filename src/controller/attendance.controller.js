@@ -20,6 +20,40 @@ export class AttendanceController {
     }
   }
 
+  static async getStudentWeeklyAttendance(req, res, next) {
+    try {
+      const getStudentWeeklyAttendance = {
+        loggedUserRole: req.loggedUser.role,
+        classId: req?.params?.classId ? Number(req?.params?.classId) : null,
+        studentId: req?.params?.studentId ? Number(req?.params?.studentId) : null,
+        year: req?.params?.year ? Number(req.params.year) : null,
+        month: req?.params?.month ? Number(req.params.month) : null,
+        week: req?.params?.week ? Number(req.params.week) : null,
+      };
+
+      const result = await AttendanceService.getStudentWeeklyAttendance(getStudentWeeklyAttendance);
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Get Student Weekly Attendance", result));
+    } catch (error) {
+      next(error);
+    }
+  }
+  static async getStudentMonthlyAttendance(req, res, next) {
+    try {
+      const getStudentMonthlyAttendanceRequest = {
+        loggedUserRole: req.loggedUser.role,
+        classId: req?.params?.classId ? Number(req?.params?.classId) : null,
+        studentId: req?.params?.studentId ? Number(req?.params?.studentId) : null,
+        year: req?.params?.year ? Number(req.params.year) : null,
+        month: req?.params?.month ? Number(req.params.month) : null,
+      };
+
+      const result = await AttendanceService.getStudentMonthlyAttendance(getStudentMonthlyAttendanceRequest);
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Get Student Monthly Attendance", result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getDailyAttendance(req, res, next) {
     try {
       const getDailyAttendanceRequest = {
