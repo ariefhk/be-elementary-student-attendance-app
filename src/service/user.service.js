@@ -4,10 +4,104 @@ import { API_STATUS_CODE } from "../helper/status-code.helper.js";
 import { checkAllowedRole, ROLE } from "../helper/check-role.helper.js";
 import { compareBcryptPassword, createBcryptPassword } from "../helper/hashing.helper.js";
 import { decodeJwt, makeJwt } from "../helper/jwt.helper.js";
+import { toUserJson, toUserJsonWithRole } from "../model/user.model.js";
 import { ParentService } from "./parent.service.js";
 import { TeacherService } from "./teacher.service.js";
 
 export class UserService {
+  static async findUserMustExist(
+    userId,
+    option = {
+      isWithToken: false,
+      isWithPassword: false,
+      isWithTeacher: false,
+      isWithParent: false,
+    }
+  ) {
+    if (!userId) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "User id is required");
+    }
+
+    // Check if user is existed
+    const existedUser = await db.user.findUnique({
+      where: {
+        id: userId,
+      },
+      include: {
+        parent: true,
+        teacher: true,
+      },
+    });
+
+    if (!existedUser) {
+      throw new APIError(API_STATUS_CODE.NOT_FOUND, "User not found");
+    }
+
+    return toUserJson(existedUser, option);
+  }
+
+  static async findUserMustExistByEmail(
+    email,
+    option = {
+      isWithToken: false,
+      isWithPassword: false,
+      isWithTeacher: false,
+      isWithParent: false,
+    }
+  ) {
+    if (!email) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Email is required");
+    }
+
+    // Check if user is existed
+    const existedUser = await db.user.findUnique({
+      where: {
+        email: email,
+      },
+      include: {
+        parent: true,
+        teacher: true,
+      },
+    });
+
+    if (!existedUser) {
+      throw new APIError(API_STATUS_CODE.NOT_FOUND, "User not found");
+    }
+
+    return toUserJson(existedUser, option);
+  }
+
+  static async findUserByEmail(
+    email,
+    option = {
+      isWithToken: false,
+      isWithPassword: false,
+      isWithTeacher: false,
+      isWithParent: false,
+    }
+  ) {
+    if (!email) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Email is required");
+    }
+
+    // Check if user is existed
+    const existedUser = await db.user.findUnique({
+      where: {
+        email: email,
+      },
+      include: {
+        parent: true,
+        teacher: true,
+      },
+    });
+
+    if (!existedUser) {
+      return null;
+    }
+
+    return toUserJson(existedUser, option);
+  }
+
   static async checkUserMustBeExist(userId) {
     if (!userId) {
       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "User id is required");
@@ -26,137 +120,28 @@ export class UserService {
     return user;
   }
 
-  static async findAll(request) {
-    const { loggedUserRole, role, name } = request;
-    const filter = {};
-    checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
-
-    // Check if role is existed
-    if (role) {
-      filter.role = {
-        contains: name,
-        mode: "insensitive",
-      };
-    }
-
-    // Check if name is existed
-    if (name) {
-      filter.name = name;
-    }
-
-    const users = await db.user.findMany({
-      orderBy: [
-        {
-          createdAt: "desc",
-        },
-      ],
-      where: filter,
-      select: {
-        id: true,
-        name: true,
-        photo: true,
-        email: true,
-        role: true,
-        createdAt: true,
-      },
-    });
-
-    return users;
-  }
-
-  static async create(request) {
-    const { name, photo, email, password, nip, address, role, loggedUserRole } = request;
-    checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
-
-    if (!name || !email || !password || !role) {
-      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Name, email, password, and role are required");
-    }
-
-    const countUser = await db.user.count({
-      where: {
-        email,
-      },
-    });
-
-    if (countUser > 0) {
-      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Email already exists");
-    }
-
-    const hashedPassword = await createBcryptPassword(password);
-
-    const createUserProcess = await db.$transaction(async (prismaTrans) => {
-      try {
-        const createUser = await prismaTrans.user.create({
-          data: {
-            name,
-            photo,
-            email,
-            password: hashedPassword,
-            role,
-          },
-        });
-
-        let createParentOrTeacher;
-
-        if (createUser.role === "PARENT") {
-          createParentOrTeacher = await prismaTrans.parent.create({
-            data: {
-              address: address,
-              userId: createUser.id,
-            },
-          });
-        } else if (createUser.role === "TEACHER") {
-          createParentOrTeacher = await prismaTrans.teacher.create({
-            data: {
-              nip: nip,
-              address: address,
-              userId: createUser.id,
-            },
-          });
-        }
-
-        return {
-          id: createUser.id,
-          name: createUser.name,
-          photo: createUser.photo,
-          email: createUser.email,
-          ...(createUser.role === "TEACHER" ? { nip: createParentOrTeacher?.nip ?? null } : {}),
-          address: createParentOrTeacher.address ?? null,
-          role: createUser.role,
-          createdAt: createUser.createdAt,
-        };
-      } catch (error) {
-        console.error("Error inside transaction create user:", error.message);
-        throw new APIError(API_STATUS_CODE.BAD_REQUEST, "failed create user!"); // Re-throw to ensure transaction is rolled back
-      }
-    });
-
-    return createUserProcess;
-  }
-
   static async login(request) {
     const { email, password } = request;
 
+    //  Check if email and password is empty
     if (!email || !password) {
       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Email and password are required");
     }
 
-    const existedUser = await db.user.findUnique({
-      where: {
-        email,
-      },
+    // Check if user is existed
+    const existedUser = await this.findUserMustExistByEmail(email, {
+      isWithPassword: true,
     });
 
-    if (!existedUser) {
-      throw new APIError(API_STATUS_CODE.NOT_FOUND, "User not found");
-    }
-
+    // Check if password is match
     const isPasswordMatch = await compareBcryptPassword(password, existedUser.password);
 
+    // Check if password is not match
     if (!isPasswordMatch) {
       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Email or Password is incorrect");
     }
 
+    // Create token
     const token = await makeJwt(
       {
         id: existedUser.id,
@@ -166,6 +151,7 @@ export class UserService {
 
     const loginUserProcess = await db.$transaction(async (prismaTrans) => {
       try {
+        // Update token
         const updatedUser = await prismaTrans.user.update({
           where: {
             id: existedUser.id,
@@ -173,55 +159,44 @@ export class UserService {
           data: {
             token: token,
           },
+          include: {
+            parent: true,
+            teacher: true,
+          },
         });
 
-        let parentOrTeacherDetail;
+        let parentOrTeacherUserData;
 
         if (updatedUser.role === "PARENT") {
-          parentOrTeacherDetail = await prismaTrans.parent.findFirst({
+          // Get Parent Data
+          parentOrTeacherUserData = await prismaTrans.parent.findFirst({
             where: {
               userId: updatedUser.id,
             },
-            select: {
-              id: true,
-              address: true,
+            include: {
+              user: true,
+              student: true,
             },
           });
-        } else if (updatedUser.role === "TEACHER") {
-          parentOrTeacherDetail = await prismaTrans.teacher.findFirst({
-            where: {
-              userId: updatedUser.id,
-            },
-            select: {
-              id: true,
-              address: true,
-              nip: true,
-            },
-          });
-        }
 
-        return {
-          id: updatedUser.id,
-          name: updatedUser.name,
-          photo: updatedUser.photo,
-          email: updatedUser.email,
-          ...(updatedUser.role === "TEACHER"
-            ? {
-                teacherId: parentOrTeacherDetail?.id,
-                nip: parentOrTeacherDetail?.nip ?? null,
-                address: parentOrTeacherDetail?.address ?? null,
-              }
-            : {}),
-          ...(updatedUser.role === "PARENT"
-            ? {
-                parentId: parentOrTeacherDetail?.id,
-                address: parentOrTeacherDetail?.address ?? null,
-              }
-            : {}),
-          role: updatedUser.role,
-          token: updatedUser.token,
-          createdAt: updatedUser.createdAt,
-        };
+          return toUserJsonWithRole(parentOrTeacherUserData, { isWithUser: true, isWithToken: true });
+        } else if (updatedUser.role === "TEACHER") {
+          // Get Teacher Data
+          parentOrTeacherUserData = await prismaTrans.teacher.findFirst({
+            where: {
+              userId: updatedUser.id,
+            },
+            include: {
+              user: true,
+              class: true,
+            },
+          });
+
+          return toUserJsonWithRole(parentOrTeacherUserData, { isWithUser: true, isWithClass: true, isWithToken: true });
+        } else {
+          // Return user data with token
+          return toUserJson(updatedUser, { isWithToken: true });
+        }
       } catch (error) {
         console.error("Error inside transaction login user:", error.message);
         throw new APIError(API_STATUS_CODE.BAD_REQUEST, "failed login user!"); // Re-throw to ensure transaction is rolled back
@@ -232,66 +207,203 @@ export class UserService {
   }
 
   static async update(request) {
-    const { userId, name, photo, email, password, nip, address, loggedUserRole } = request;
-    checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
+    const { name, photo, email, password, nip, address, gender, loggedUserRole, loggedUserId } = request;
 
-    if (!userId) {
+    // Check if user is allowed to update
+    checkAllowedRole(ROLE.IS_ALL_ROLE, loggedUserRole);
+
+    // Check if user is allowed to update
+    if (!loggedUserId) {
       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "User id is required");
     }
 
-    // Check if user is existed
-    const existedUser = await this.checkUserMustBeExist(userId);
+    let userId;
 
-    const updateUser = await db.user.update({
-      where: {
-        id: existedUser.id,
-      },
-      data: {
-        name: name ?? existedUser.name,
-        photo: photo ?? existedUser.photo,
-        email: email ?? existedUser.email,
-        password: password ? await createBcryptPassword(password) : existedUser.password,
-      },
-    });
+    switch (loggedUserRole) {
+      case "PARENT":
+        const existedParent = await ParentService.findParentMustExist(loggedUserId, {
+          isWithUser: true,
+        });
+        userId = existedParent.user.id;
 
-    let updateParentOrTeacher;
+        break;
+      case "TEACHER":
+        const existedTeacher = await TeacherService.findTeacherMustExist(loggedUserId, {
+          isWithUser: true,
+        });
+        userId = existedTeacher.user.id;
 
-    if (updateUser.role === "PARENT") {
-      updateParentOrTeacher = await db.parent.update({
-        where: {
-          userId: updateUser.id,
-        },
-        data: {
-          address: address,
-        },
-      });
-    } else if (updateUser.role === "TEACHER") {
-      updateParentOrTeacher = await db.teacher.update({
-        where: {
-          userId: updateUser.id,
-        },
-        data: {
-          nip: nip,
-          address: address,
-        },
-      });
+        break;
+
+      default:
+        const existedUser = await this.findUserMustExist(loggedUserId);
+        userId = existedUser.id;
+
+        break;
     }
 
-    return {
-      id: updateUser.id,
-      name: updateUser.name,
-      photo: updateUser.photo,
-      email: updateUser.email,
-      ...(updateUser.role === "TEACHER"
-        ? { teacherId: updateParentOrTeacher?.id ?? null, nip: updateParentOrTeacher?.nip ?? null }
-        : { parentId: updateParentOrTeacher?.id ?? null }),
-      address: updateParentOrTeacher.address ?? null,
-      role: updateUser.role,
-      createdAt: updateUser.createdAt,
-    };
+    // Check if email is already existed
+    if (email) {
+      const existedUserWithSameEmail = await db.user.findFirst({
+        where: {
+          email: email,
+          id: {
+            not: userId,
+          },
+        },
+      });
+
+      // throw error if email is already existed
+      if (existedUserWithSameEmail) {
+        throw new APIError({
+          status: API_STATUS_CODE.BAD_REQUEST,
+          message: "Email is already existed!",
+        });
+      }
+    }
+
+    const updateCurrentUserProcess = await db.$transaction(async (prismaTransaction) => {
+      try {
+        // Update user data
+        if (email || password) {
+          await prismaTransaction.user.update({
+            where: {
+              id: userId,
+            },
+            data: {
+              ...(email && { email: email }),
+              ...(password && { password: await createBcryptPassword(password) }),
+            },
+          });
+        }
+
+        let updatedUser;
+
+        switch (loggedUserRole) {
+          case "PARENT":
+            updatedUser = await db.parent.update({
+              where: {
+                id: loggedUserId,
+              },
+              data: {
+                ...(name && { name: name }),
+                ...(photo && { photo: photo }),
+                ...(address && { address: address }),
+                ...(gender && { gender: gender }),
+              },
+              include: {
+                user: true,
+                student: true,
+              },
+            });
+            return toUserJsonWithRole(updatedUser, { isWithUser: true });
+
+          case "TEACHER":
+            updatedUser = await db.teacher.update({
+              where: {
+                id: loggedUserId,
+              },
+              data: {
+                ...(name && { name: name }),
+                ...(photo && { photo: photo }),
+                ...(nip && { nip: nip }),
+                ...(address && { address: address }),
+                ...(gender && { gender: gender }),
+              },
+              include: {
+                user: true,
+                class: true,
+              },
+            });
+            return toUserJsonWithRole(updatedUser, { isWithUser: true, isWithClass: true });
+        }
+      } catch (error) {
+        console.log("Error update user: ", error);
+        throw new APIError({
+          status: API_STATUS_CODE.BAD_REQUEST,
+          message: error.message,
+        });
+      }
+    });
+
+    return updateCurrentUserProcess;
   }
 
+  // static async create(request) {
+  //   const { name, photo, email, password, nip, address, role, loggedUserRole } = request;
+  //   checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
+
+  //   if (!name || !email || !password || !role) {
+  //     throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Name, email, password, and role are required");
+  //   }
+
+  //   const countUser = await db.user.count({
+  //     where: {
+  //       email,
+  //     },
+  //   });
+
+  //   if (countUser > 0) {
+  //     throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Email already exists");
+  //   }
+
+  //   const hashedPassword = await createBcryptPassword(password);
+
+  //   const createUserProcess = await db.$transaction(async (prismaTrans) => {
+  //     try {
+  //       const createUser = await prismaTrans.user.create({
+  //         data: {
+  //           name,
+  //           photo,
+  //           email,
+  //           password: hashedPassword,
+  //           role,
+  //         },
+  //       });
+
+  //       let createParentOrTeacher;
+
+  //       if (createUser.role === "PARENT") {
+  //         createParentOrTeacher = await prismaTrans.parent.create({
+  //           data: {
+  //             address: address,
+  //             userId: createUser.id,
+  //           },
+  //         });
+  //       } else if (createUser.role === "TEACHER") {
+  //         createParentOrTeacher = await prismaTrans.teacher.create({
+  //           data: {
+  //             nip: nip,
+  //             address: address,
+  //             userId: createUser.id,
+  //           },
+  //         });
+  //       }
+
+  //       return {
+  //         id: createUser.id,
+  //         name: createUser.name,
+  //         photo: createUser.photo,
+  //         email: createUser.email,
+  //         ...(createUser.role === "TEACHER" ? { nip: createParentOrTeacher?.nip ?? null } : {}),
+  //         address: createParentOrTeacher.address ?? null,
+  //         role: createUser.role,
+  //         createdAt: createUser.createdAt,
+  //       };
+  //     } catch (error) {
+  //       console.error("Error inside transaction create user:", error.message);
+  //       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "failed create user!"); // Re-throw to ensure transaction is rolled back
+  //     }
+  //   });
+
+  //   return createUserProcess;
+  // }
+
   static async checkToken(token) {
+    // Check if token is empty
+    if (!token) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Token is required");
+    }
     // Check if token is existed
     const existedToken = await db.user.findFirst({
       where: {
@@ -299,6 +411,7 @@ export class UserService {
       },
     });
 
+    // Check if token is not existed
     if (!existedToken) {
       throw new APIError(API_STATUS_CODE.UNAUTHORIZED, "Unauthorized!");
     }
@@ -307,38 +420,53 @@ export class UserService {
     const decodedUser = await decodeJwt(token);
 
     // Check if user is existed by user id
-    const existedUser = await this.checkUserMustBeExist(decodedUser.id);
+    const existedUser = await this.findUserMustExist(decodedUser.id);
 
     // Get User Role Detail
     let parentOrTeacherDetail;
 
     // Check if user role is PARENT or TEACHER
     if (existedUser.role === "PARENT") {
-      parentOrTeacherDetail = await ParentService.checkParentMustBeExistByUserId(existedUser.id);
+      // Get Parent Data
+      parentOrTeacherDetail = await db.parent.findFirst({
+        where: {
+          userId: existedUser.id,
+        },
+        include: {
+          student: true,
+          user: true,
+        },
+      });
+
+      return toUserJsonWithRole(parentOrTeacherDetail, { isWithUser: true });
     } else if (existedUser.role === "TEACHER") {
-      parentOrTeacherDetail = await TeacherService.checkTeacherMustBeExistByUserId(existedUser.id);
+      // Get Teacher Data
+      parentOrTeacherDetail = await db.teacher.findFirst({
+        where: {
+          userId: existedUser.id,
+        },
+        include: {
+          class: true,
+          user: true,
+        },
+      });
+      return toUserJsonWithRole(parentOrTeacherDetail, { isWithUser: true, isWithClass: true });
     }
 
-    return {
-      id: existedUser.id,
-      name: existedUser.name,
-      photo: existedUser.photo,
-      email: existedUser.email,
-      address: parentOrTeacherDetail?.address ?? null,
-      ...(existedUser.role === "TEACHER" ? { nip: parentOrTeacherDetail?.nip ?? null } : {}),
-      role: existedUser.role,
-      createdAt: existedUser.createdAt,
-    };
+    return toUserJson(existedUser);
   }
 
   static async delete(request) {
     const { userId, loggedUserRole } = request;
+    // Check if user is allowed to delete
     checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
 
-    const existedUser = await this.checkUserMustBeExist(userId);
+    // Check if user is existed
+    const existedUser = await this.findUserMustExist(userId);
 
     await db.$transaction(async (prismaTrans) => {
       try {
+        // Delete user data
         if (existedUser.role === "PARENT") {
           await prismaTrans.parent.delete({
             where: {
@@ -363,24 +491,47 @@ export class UserService {
       }
     });
 
-    return true;
+    return existedUser;
   }
 
   static async logout(request) {
-    const { userId } = request;
+    const { loggedUserId, loggedUserRole } = request;
 
-    // Check if user is allowed to delete
-    const existedUser = await this.checkUserMustBeExist(userId);
+    let userId;
+    let loggedUser;
+
+    switch (loggedUserRole) {
+      case "PARENT":
+        const existedParent = await ParentService.findParentMustExist(loggedUserId, {
+          isWithUser: true,
+        });
+        userId = existedParent.user.id;
+        loggedUser = existedParent;
+        break;
+      case "TEACHER":
+        const existedTeacher = await TeacherService.findTeacherMustExist(loggedUserId, {
+          isWithUser: true,
+        });
+        userId = existedTeacher.user.id;
+        loggedUser = existedTeacher;
+        break;
+
+      default:
+        const existedUser = await this.findUserMustExist(loggedUserId);
+        userId = existedUser.id;
+        loggedUser = existedUser;
+        break;
+    }
 
     await db.user.update({
       where: {
-        id: existedUser.id,
+        id: userId,
       },
       data: {
         token: null,
       },
     });
 
-    return true;
+    return loggedUser;
   }
 }

@@ -33,8 +33,6 @@ enum GENDER {
 
 model User {
   id        Int      @id @default(autoincrement())
-  name      String?
-  photo     String?
   email     String   @unique
   password  String
   role      Role     @default(ADMIN)
@@ -48,26 +46,32 @@ model User {
 }
 
 model Teacher {
-  id        Int      @id @default(autoincrement())
-  nip       String?
-  address   String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  userId    Int      @unique @map("user_id")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  class     Class[]
+  id             Int      @id @default(autoincrement())
+  name           String
+  profilePicture String?
+  nip            String?
+  address        String?
+  gender         GENDER
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  userId         Int      @unique @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class          Class[]
 
   @@map("teachers")
 }
 
 model Parent {
-  id        Int       @id @default(autoincrement())
-  address   String?
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  userId    Int       @unique @map("user_id")
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  student   Student[]
+  id             Int       @id @default(autoincrement())
+  name           String
+  profilePicture String?
+  address        String?
+  gender         GENDER
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  userId         Int       @unique @map("user_id")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  student        Student[]
 
   @@map("parents")
 }

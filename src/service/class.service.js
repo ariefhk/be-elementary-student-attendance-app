@@ -3,103 +3,100 @@ import { APIError } from "../error/api.error.js";
 import { API_STATUS_CODE } from "../helper/status-code.helper.js";
 import { checkAllowedRole, ROLE } from "../helper/check-role.helper.js";
 import { TeacherService } from "./teacher.service.js";
-import { StudentService } from "./student.service.js";
+import { toClassJSON } from "../model/class.model.js";
 
 export class ClassService {
-  static async checkClassMustBeExist(classId) {
+  static async findClassMustExist(classId, option = { isWithStudent: false, isWithTeacher: false }) {
+    // Check if class id is existed
     if (!classId) {
       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Class id is required");
     }
 
-    const existedClass = await db.class.findUnique({
+    // Find class by id
+    const classes = await db.class.findUnique({
       where: {
         id: classId,
       },
-      select: {
-        id: true,
-        name: true,
+      include: {
         studentClass: {
-          select: {
-            class: true,
-            student: {
-              select: {
-                id: true,
-                nisn: true,
-                name: true,
-                gender: true,
-                email: true,
-                no_telp: true,
-                parent: {
-                  select: {
-                    id: true,
-                    user: {
-                      select: {
-                        name: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
+          include: {
+            student: true,
           },
         },
-        teacher: {
-          select: {
-            id: true,
-            nip: true,
-            user: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-        createdAt: true,
+        teacher: true,
       },
     });
 
-    if (!existedClass) {
+    if (!classes) {
       throw new APIError(API_STATUS_CODE.NOT_FOUND, "Class not found");
     }
 
-    return existedClass;
+    return toClassJSON(classes, option);
   }
 
-  static async checkClassByName(className) {
-    if (!className) {
-      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Class Name is required for check!");
+  static async findClassById(classId, option = { isWithStudent: false, isWithTeacher: false }) {
+    // Check if class id is existed
+    if (!classId) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Class id is required");
     }
 
-    const existedClassByName = await db.class.findFirst({
+    // Find class by id
+    const classes = await db.class.findUnique({
       where: {
-        name: className,
+        id: classId,
       },
-      select: {
-        id: true,
-        name: true,
-        studentClass: true,
-        teacher: {
-          select: {
-            id: true,
-            nip: true,
-            user: {
-              select: {
-                name: true,
-              },
-            },
+      include: {
+        studentClass: {
+          include: {
+            student: true,
           },
         },
-        createdAt: true,
+        teacher: true,
       },
     });
 
-    return existedClassByName;
+    if (!classes) {
+      return null;
+    }
+
+    return toClassJSON(classes, option);
+  }
+
+  static async findClassByName(name, option = { isWithStudent: false, isWithTeacher: false }) {
+    // Check if name is existed
+    if (!name) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Name of the class is required for check!");
+    }
+
+    // Find class by name
+    const existedClassByName = await db.class.findFirst({
+      where: {
+        name: name,
+      },
+      include: {
+        studentClass: {
+          include: {
+            student: true,
+          },
+        },
+        teacher: true,
+      },
+    });
+
+    // return null if class is not existed
+    if (!existedClassByName) {
+      return null;
+    }
+
+    return toClassJSON(existedClassByName, option);
   }
 
   static async findAll(request) {
     const { loggedUserRole, name } = request;
-    const filter = {};
+
+    // check logged user
     checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
+    const filter = {};
 
     // Check if name is existed
     if (name) {
@@ -109,6 +106,7 @@ export class ClassService {
       };
     }
 
+    // Find all classes
     const classes = await db.class.findMany({
       orderBy: [
         {
@@ -116,198 +114,29 @@ export class ClassService {
         },
       ],
       where: filter,
-      select: {
-        id: true,
-        name: true,
-        studentClass: true,
-        teacher: {
-          select: {
-            id: true,
-            nip: true,
-            user: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-        createdAt: true,
-      },
-    });
-
-    return classes.map((classes) => {
-      return {
-        id: classes.id,
-        name: classes.name,
-        teacher: {
-          id: classes?.teacher?.id ?? null,
-          nip: classes?.teacher?.nip ?? null,
-          name: classes?.teacher?.user?.name ?? null,
-        },
-        studentCount: classes?.studentClass?.length,
-        createdAt: classes.createdAt,
-      };
-    });
-  }
-
-  static async findByStudentId(request) {
-    const { studentId, loggedUserRole } = request;
-
-    if (!studentId) {
-      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Student id is required");
-    }
-    const existedStudent = await StudentService.checkStudentMustBeExist(studentId);
-
-    const existedStudentClass = await db.studentClass.findMany({
-      where: {
-        studentId: existedStudent.id,
-      },
-      select: {
-        student: {
-          select: {
-            id: true,
-            nisn: true,
-            name: true,
-            gender: true,
-            email: true,
-            no_telp: true,
-          },
-        },
-        class: {
-          select: {
-            id: true,
-            name: true,
-            teacher: {
-              select: {
-                id: true,
-                nip: true,
-                user: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
-            createdAt: true,
-          },
-        },
-      },
-    });
-
-    return {
-      student: {
-        id: existedStudent.id,
-        nisn: existedStudent.nisn,
-        name: existedStudent.name,
-        email: existedStudent.email,
-      },
-      classes: existedStudentClass.map((stdClass) => {
-        return {
-          id: stdClass.class.id,
-          name: stdClass.class.name,
-          teacher: {
-            id: stdClass.class.teacher.id,
-            nip: stdClass.class.teacher.nip,
-            name: stdClass.class.teacher.user.name,
-          },
-          createdAt: stdClass.class.createdAt,
-        };
-      }),
-    };
-  }
-
-  static async findById(request) {
-    const { classId } = request;
-
-    if (!classId) {
-      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Class id is required");
-    }
-
-    const existedClass = await db.class.findUnique({
-      where: {
-        id: classId,
-      },
-      select: {
-        id: true,
-        name: true,
+      include: {
         studentClass: {
-          select: {
-            class: true,
-            student: {
-              select: {
-                id: true,
-                nisn: true,
-                name: true,
-                gender: true,
-                email: true,
-                no_telp: true,
-                parent: {
-                  select: {
-                    id: true,
-                    user: {
-                      select: {
-                        name: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
+          include: {
+            student: true,
           },
         },
-        teacher: {
-          select: {
-            id: true,
-            nip: true,
-            user: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-        createdAt: true,
+        teacher: true,
       },
     });
 
-    if (!existedClass) {
-      throw new APIError(API_STATUS_CODE.NOT_FOUND, "Class not found");
-    }
-
-    return {
-      id: existedClass.id,
-      name: existedClass.name,
-      teacher: {
-        id: existedClass.teacher.id,
-        nip: existedClass.teacher.nip,
-        name: existedClass.teacher.user.name,
-      },
-      studentCount: existedClass.studentClass?.length,
-      students:
-        existedClass.studentClass?.length > 0
-          ? existedClass.studentClass.map((std) => {
-              return {
-                id: std.student.id,
-                nisn: std.student.nisn,
-                name: std.student.name,
-                gender: std.student.gender,
-                email: std.student.email,
-                no_telp: std.student.no_telp,
-                parent: {
-                  id: std?.student?.parent?.id ?? null,
-                  name: std?.student?.parent?.user?.name ?? null,
-                },
-              };
-            })
-          : [],
-      createdAt: existedClass.createdAt,
-    };
+    return classes.map((classes) => toClassJSON(classes, { isWithStudent: true, isWithTeacher: true }));
   }
 
   static async findByTeacherId(request) {
     const { teacherId, loggedUserRole } = request;
-    const existedTeacher = await TeacherService.checkTeacherMustBeExist(teacherId);
 
+    // check logged user
+    checkAllowedRole(ROLE.IS_ALL_ROLE, loggedUserRole);
+
+    // check if teacher is existed
+    const existedTeacher = await TeacherService.findTeacherMustExist(teacherId);
+
+    // check if teacher has class
     const existedTeacherClass = await db.class.findMany({
       orderBy: [
         {
@@ -317,151 +146,117 @@ export class ClassService {
       where: {
         teacherId: existedTeacher.id,
       },
-      select: {
-        id: true,
-        name: true,
-        studentClass: true,
-        createdAt: true,
+      include: {
+        studentClass: {
+          include: {
+            student: true,
+          },
+        },
+        teacher: true,
       },
     });
 
-    return {
-      countClass: existedTeacherClass.length,
-      teacher: {
-        id: existedTeacher.id,
-        nip: existedTeacher.nip,
-        name: existedTeacher.user.name,
-      },
-      classes: existedTeacherClass.map((classes) => {
-        return {
-          id: classes.id,
-          name: classes.name,
-          studentCount: classes.studentClass.length,
-          createdAt: classes.createdAt,
-        };
-      }),
-    };
+    if (!existedTeacherClass) {
+      return [];
+    }
+
+    return existedTeacherClass.map((classes) => toClassJSON(classes, { isWithStudent: true, isWithTeacher: true }));
   }
 
   static async create(request) {
     const { name, teacherId, loggedUserRole } = request;
 
+    // check logged user
     checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
 
+    // check if name and teacherId is existed
     if (!name || !teacherId) {
-      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Class Name and Teacher Id is required!");
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Name of the class and Teacher Id is required!");
     }
 
-    const existedClassByName = await this.checkClassByName(name);
+    // check if class is existed
+    const existedClassByName = await this.findClassByName(name);
 
+    // throw error if class is existed
     if (existedClassByName) {
       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Class already created!");
     }
 
-    const existedTeacher = await TeacherService.checkTeacherMustBeExist(teacherId);
+    // check if teacher is existed
+    const existedTeacher = await TeacherService.findTeacherMustExist(teacherId);
 
+    // create class
     const createdClass = await db.class.create({
       data: {
         name: name,
         teacherId: existedTeacher.id,
       },
 
-      select: {
-        id: true,
-        name: true,
-        studentClass: true,
-        teacher: {
-          select: {
-            id: true,
-            nip: true,
-            user: {
-              select: {
-                name: true,
-              },
-            },
+      include: {
+        studentClass: {
+          include: {
+            student: true,
           },
         },
-        createdAt: true,
+        teacher: true,
       },
     });
 
-    return {
-      id: createdClass.id,
-      name: createdClass.name,
-      teacher: {
-        id: createdClass.teacher.id,
-        nip: createdClass.teacher.nip,
-        name: createdClass.teacher.user.name,
-      },
-      studentCount: createdClass.studentClass.length,
-      createdAt: createdClass.createdAt,
-    };
+    return toClassJSON(createdClass, { isWithStudent: true, isWithTeacher: true });
   }
 
   static async update(request) {
-    const { name, classId, teacherId, loggedUserRole } = request;
+    const { classId, teacherId, name, loggedUserRole } = request;
 
+    // check logged user
     checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
 
-    const existedClass = await this.checkClassMustBeExist(classId);
+    // check if class is existed
+    const existedClass = await this.findClassMustExist(classId);
 
     // if there teacherId, we check existed teacher
     if (teacherId) {
-      await TeacherService.checkTeacherMustBeExist(teacherId);
+      await TeacherService.findTeacherMustExist(teacherId);
     }
 
+    // update class
     const updatedClass = await db.class.update({
       where: {
         id: existedClass.id,
       },
       data: {
-        name: name ?? existedClass.name,
-        teacherId: teacherId ?? existedClass.teacher.id,
+        ...(name && { name: name }),
+        ...(teacherId && { teacherId: teacherId }),
       },
-      select: {
-        id: true,
-        name: true,
-        studentClass: true,
-        teacher: {
-          select: {
-            id: true,
-            nip: true,
-            user: {
-              select: {
-                name: true,
-              },
-            },
+      include: {
+        studentClass: {
+          include: {
+            student: true,
           },
         },
-        createdAt: true,
+        teacher: true,
       },
     });
 
-    return {
-      id: updatedClass.id,
-      name: updatedClass.name,
-      teacher: {
-        id: updatedClass.teacher.id,
-        nip: updatedClass.teacher.nip,
-        name: updatedClass.teacher.user.name,
-      },
-      studentCount: updatedClass.studentClass.length,
-      createdAt: updatedClass.createdAt,
-    };
+    return toClassJSON(updatedClass, { isWithStudent: true, isWithTeacher: true });
   }
 
   static async delete(request) {
     const { classId, loggedUserRole } = request;
+
+    // check logged user
     checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
 
-    const existedClass = await ClassService.checkClassMustBeExist(classId);
+    // check if class is existed
+    const existedClass = await ClassService.findClassMustExist(classId);
 
+    // delete class
     await db.class.delete({
       where: {
         id: existedClass.id,
       },
     });
 
-    return true;
+    return existedClass;
   }
 }

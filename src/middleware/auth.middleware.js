@@ -11,16 +11,7 @@ export const authMiddleware = async (req, res, next) => {
     try {
       const user = await UserService.checkToken(token);
 
-      req.loggedUser = {
-        id: user.id,
-        name: user.name,
-        photo: user.photo,
-        email: user.email,
-        address: user?.address ?? null,
-        ...(user.role === "TEACHER" ? { nip: user?.nip ?? null } : {}),
-        role: user.role,
-        createdAt: user.createdAt,
-      };
+      req.loggedUser = user;
 
       next();
     } catch (error) {

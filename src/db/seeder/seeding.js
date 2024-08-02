@@ -6,8 +6,7 @@ const createManyAdminSeed = async () => {
   for (let i = 0; i < 5; i++) {
     await db.user.create({
       data: {
-        name: `admin${i}`,
-        email: `admin-${i}@gmail.com`,
+        email: `admin${i}@gmail.com`,
         password: await createBcryptPassword("rahasia"),
         role: "ADMIN",
       },
@@ -19,18 +18,21 @@ const createManyParentSeed = async () => {
   for (let i = 0; i < 5; i++) {
     const user = await db.user.create({
       data: {
-        name: `parent${i}`,
-        email: `parent-${i}@gmail.com`,
+        email: `parent${i}@gmail.com`,
         password: await createBcryptPassword("rahasia"),
         role: "PARENT",
       },
     });
 
-    await db.parent.create({
-      data: {
-        userId: user.id,
-      },
-    });
+    if (user) {
+      await db.parent.create({
+        data: {
+          name: `parent${i}`,
+          gender: "P",
+          userId: user.id,
+        },
+      });
+    }
   }
 };
 
@@ -38,18 +40,22 @@ const createManyTeacherSeed = async () => {
   for (let i = 0; i < 5; i++) {
     const user = await db.user.create({
       data: {
-        name: `teacher${i}`,
-        email: `teacher-${i}@gmail.com`,
+        email: `teacher${i}@gmail.com`,
         password: await createBcryptPassword("rahasia"),
         role: "TEACHER",
       },
     });
 
-    await db.teacher.create({
-      data: {
-        userId: user.id,
-      },
-    });
+    if (user) {
+      await db.teacher.create({
+        data: {
+          name: `teacher${i}`,
+          gender: "L",
+          nip: `nip-${i}teacher`,
+          userId: user.id,
+        },
+      });
+    }
   }
 };
 
@@ -118,9 +124,9 @@ const createManyStudentSeed = async () => {
 };
 
 const deleteAll = async () => {
-  await db.studentClass.deleteMany();
-  await db.student.deleteMany();
-  await deleteAllClass();
+  // await db.studentClass.deleteMany();
+  // await db.student.deleteMany();
+  // await deleteAllClass();
   await deleteAllUser();
 };
 
@@ -129,8 +135,8 @@ const createAll = async () => {
   await createManyAdminSeed();
   await createManyParentSeed();
   await createManyTeacherSeed();
-  await createManyClassSeed();
-  await createManyStudentSeed();
+  // await createManyClassSeed();
+  // await createManyStudentSeed();
 };
 
 async function main() {

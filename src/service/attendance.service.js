@@ -18,11 +18,7 @@ export class AttendanceService {
 
     const listOfWeek = getWeekMonToSaturdayDates(Number(year), Number(month), Number(week));
 
-    if (!classId) {
-      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Class Id not inputted!");
-    }
-
-    const existedClass = await ClassService.checkClassMustBeExist(classId);
+    const existedClass = await ClassService.findClassMustExist(classId);
 
     const existedStudentClass = await db.studentClass.findMany({
       where: {
@@ -74,8 +70,8 @@ export class AttendanceService {
     // Prepare the final JSON structure
     const weeklyAttendance = {
       teacher: {
-        id: existedClass.teacher.id,
-        name: existedClass.teacher.user.name,
+        id: existedClass?.teacher?.id || null,
+        name: existedClass?.teacher?.name || null,
       },
       class: {
         id: existedClass.id,
@@ -149,13 +145,11 @@ export class AttendanceService {
   static async getDailyAttendance(request) {
     const { classId, date, loggedUserRole } = request;
 
+    // Check if the user is allowed to access this endpoint
     checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
 
-    if (!classId) {
-      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Class Id not inputted!");
-    }
-
-    const existedClass = await ClassService.checkClassMustBeExist(classId);
+    // Check if the date is inputted
+    const existedClass = await ClassService.findClassMustExist(classId);
 
     const existedStudentClass = await db.studentClass.findMany({
       where: {
@@ -208,13 +202,31 @@ export class AttendanceService {
 
     const attd = [];
 
+    let presentCount = 0; // Temporary property to calculate percentagePresent
+    let validDayCount = 0; // Temporary property to calculate percentagePresent
+
     // Prepare the final list of attendance records, including defaults for missing students
     existedStudentClass.forEach((stdClass, index) => {
-      if (attendanceMap.has(stdClass.student.id)) {
-        attd.push({
-          ...attendanceMap.get(stdClass.student.id),
-        });
+      const key = stdClass?.student?.id;
+      const status = attendanceMap.get(key)?.status;
+      if (attendanceMap.has(key)) {
+        if (status !== "HOLIDAY") {
+          validDayCount++;
+          if (status === "PRESENT") {
+            presentCount++;
+          }
+          attd.push({
+            ...attendanceMap.get(key),
+            status,
+          });
+        } else {
+          attd.push({
+            ...attendanceMap.get(key),
+            status: "HOLIDAY",
+          });
+        }
       } else {
+        validDayCount++;
         const defaultAttendance = {
           status: "ABSENT",
           date: transformDate(date),
@@ -231,13 +243,14 @@ export class AttendanceService {
     return {
       date: transformDate(date),
       teacher: {
-        id: existedClass.teacher?.id,
-        name: existedClass.teacher?.user?.name,
+        id: existedClass?.teacher?.id || null,
+        name: existedClass?.teacher?.name || null,
       },
       class: {
         id: existedClass.id,
         name: existedClass.name,
       },
+      percentagePresent: validDayCount > 0 ? Number((presentCount / validDayCount) * 100).toFixed(2) : 0,
       attendance:
         attd.length > 0
           ? attd.sort((a, b) => {
@@ -258,9 +271,9 @@ export class AttendanceService {
 
     const listOfWeek = getWeekMonToSaturdayDates(Number(year), Number(month), Number(week));
 
-    const existedStudent = await StudentService.checkStudentMustBeExist(studentId);
+    const existedStudent = await StudentService.findStudentMustExist(studentId);
 
-    const existedClass = await ClassService.checkClassMustBeExist(classId);
+    const existedClass = await ClassService.findClassMustExist(classId);
 
     const existedStudentClass = await db.studentClass.findMany({
       where: {
@@ -318,12 +331,12 @@ export class AttendanceService {
     // Prepare the final JSON structure
     const weeklyAttendance = {
       teacher: {
-        id: existedClass.teacher.id,
-        name: existedClass.teacher.user.name,
+        id: existedClass?.teacher?.id || null,
+        name: existedClass?.teacher?.name || null,
       },
       class: {
-        id: existedClass.id,
-        name: existedClass.name,
+        id: existedClass?.id || null,
+        name: existedClass?.name || null,
       },
       attendance: [],
       percentagePresent: 0,
@@ -382,9 +395,9 @@ export class AttendanceService {
   static async getStudentMonthlyAttendance(request) {
     const { classId, studentId, month, year, loggedUserRole } = request;
 
-    const existedStudent = await StudentService.checkStudentMustBeExist(studentId);
+    const existedStudent = await StudentService.findStudentMustExist(studentId);
 
-    const existedClass = await ClassService.checkClassMustBeExist(classId);
+    const existedClass = await ClassService.findClassMustExist(classId);
 
     const existedStudentClass = await db.studentClass.findMany({
       where: {
@@ -521,8 +534,6 @@ export class AttendanceService {
   static async createOrUpdateMany(request) {
     const { classId, date, studentAttendances, loggedUserRole } = request;
 
-    console.log(request);
-
     checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
 
     if (!date) {
@@ -537,7 +548,7 @@ export class AttendanceService {
       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Students not inputted!");
     }
 
-    const existedClass = await ClassService.checkClassMustBeExist(classId);
+    const existedClass = await ClassService.findClassMustExist(classId);
 
     // Fetch all student IDs for the class
     const existedStudentClass = await db.studentClass.findMany({
@@ -603,11 +614,6 @@ export class AttendanceService {
       }
     }
 
-    console.log({
-      updateAttendances,
-      createAttendances,
-    });
-
     // Execute batch updateAttendances
     for (const update of updateAttendances) {
       await db.attendance.update(update);
@@ -647,13 +653,13 @@ export class AttendanceService {
       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Class Id not inputted!");
     }
 
-    const existedClass = await ClassService.checkClassMustBeExist(classId);
+    const existedClass = await ClassService.findClassMustExist(classId);
 
     if (!studentId) {
       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Student Id not inputted!");
     }
 
-    const existedStudent = await StudentService.checkStudentMustBeExist(studentId);
+    const existedStudent = await StudentService.findStudentMustExist(studentId);
 
     const studentAttendance = await db.attendance.findFirst({
       where: {

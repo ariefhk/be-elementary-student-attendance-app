@@ -3,85 +3,41 @@ import { APIError } from "../error/api.error.js";
 import { API_STATUS_CODE } from "../helper/status-code.helper.js";
 import { checkAllowedRole, ROLE } from "../helper/check-role.helper.js";
 import { ParentService } from "./parent.service.js";
-import { ClassService } from "./class.service.js";
+import { toStudentJSON } from "../model/student.model.js";
 
 export class StudentService {
-  static async checkStudentMustBeExist(studentId) {
+  static async findStudentMustExist(studentId, option = { isWithParent: false, isWithClass: false }) {
     if (!studentId) {
       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Student id is required");
     }
 
-    const existedStudent = await db.student.findUnique({
+    const student = await db.student.findUnique({
       where: {
         id: studentId,
       },
-      select: {
-        id: true,
-        nisn: true,
-        name: true,
-        gender: true,
-        email: true,
-        no_telp: true,
+      include: {
         studentClass: {
-          select: {
-            class: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            student: true,
+          include: {
+            class: true,
           },
         },
-        parent: {
-          select: {
-            id: true,
-            address: true,
-            user: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-        createdAt: true,
+        parent: true,
       },
     });
 
-    if (!existedStudent) {
-      throw new APIError(API_STATUS_CODE.NOT_FOUND, "Student not found");
+    if (!student) {
+      throw new APIError(API_STATUS_CODE.NOT_FOUND, "Student not found!");
     }
 
-    return {
-      id: existedStudent.id,
-      nisn: existedStudent.nisn,
-      name: existedStudent.name,
-      gender: existedStudent.gender,
-      email: existedStudent.email,
-      no_telp: existedStudent.no_telp,
-      classCount: existedStudent?.studentClass?.length,
-      parent: {
-        id: existedStudent?.parent?.id,
-        name: existedStudent?.parent?.user?.name,
-        address: existedStudent?.parent?.address,
-      },
-      classes:
-        existedStudent?.studentClass?.length > 0
-          ? existedStudent?.studentClass?.map((std) => {
-              return {
-                id: std?.class?.id,
-                name: std?.class?.name,
-              };
-            })
-          : [],
-      createdAt: existedStudent.createdAt,
-    };
+    return toStudentJSON(student, option);
   }
 
   static async findAll(request) {
-    const { loggedUserRole, name } = request;
-    const filter = {};
+    const { name, loggedUserRole } = request;
+
+    // Check if user is admin or teacher
     checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
+    const filter = {};
 
     // Check if name is existed
     if (name) {
@@ -91,6 +47,7 @@ export class StudentService {
       };
     }
 
+    // Find all students
     const students = await db.student.findMany({
       orderBy: [
         {
@@ -98,52 +55,33 @@ export class StudentService {
         },
       ],
       where: filter,
-      select: {
-        id: true,
-        nisn: true,
-        name: true,
-        gender: true,
-        email: true,
-        no_telp: true,
-        studentClass: true,
-        parent: {
-          select: {
-            id: true,
-            address: true,
-            user: {
-              select: {
-                name: true,
-              },
-            },
+      include: {
+        studentClass: {
+          include: {
+            class: true,
           },
         },
-        createdAt: true,
+        parent: true,
       },
     });
 
-    return students.map((std) => {
-      return {
-        id: std.id,
-        nisn: std.nisn,
-        name: std.name,
-        gender: std.gender,
-        email: std.email,
-        no_telp: std.no_telp,
-        classCount: std?.studentClass?.length,
-        parent: {
-          id: std?.parent?.id ?? null,
-          name: std?.parent?.user?.name ?? null,
-          address: std?.parent?.address ?? null,
-        },
-        createdAt: std.createdAt,
-      };
-    });
+    if (!students) {
+      return [];
+    }
+
+    return students.map((std) => toStudentJSON(std, { isWithParent: true, isWithClass: true }));
   }
 
   static async findByParentId(request) {
     const { parentId, name, loggedUserRole } = request;
+
+    // Check if user is admin parent
+    checkAllowedRole(ROLE.IS_ADMIN_PARENT, loggedUserRole);
+
     const filter = {};
-    const existedParent = await ParentService.checkParentMustBeExist(parentId);
+
+    // Check if parent is existed
+    const existedParent = await ParentService.findParentMustExist(parentId);
 
     // Check if name is existed
     if (name) {
@@ -153,382 +91,112 @@ export class StudentService {
       };
     }
 
+    // Find all students by parent id
     const existedStudentFromParent = await db.student.findMany({
       where: {
         parentId: existedParent.id,
         ...filter,
       },
-      select: {
-        id: true,
-        nisn: true,
-        name: true,
-        gender: true,
-        email: true,
-        no_telp: true,
-        studentClass: true,
-        parent: {
-          select: {
-            id: true,
-            address: true,
-            user: {
-              select: {
-                name: true,
-              },
-            },
+      include: {
+        studentClass: {
+          include: {
+            class: true,
           },
         },
-        createdAt: true,
+        parent: true,
       },
     });
 
-    return {
-      countStudent: existedStudentFromParent.length,
-      parent: {
-        id: existedParent.id,
-        nip: existedParent.nip,
-        name: existedParent.user.name,
-      },
-      students: existedStudentFromParent.map((std) => {
-        return {
-          id: std.id,
-          nisn: std.nisn,
-          name: std.name,
-          gender: std.gender,
-          email: std.email,
-          no_telp: std.no_telp,
-          classCount: std?.studentClass?.length,
-          createdAt: std.createdAt,
-        };
-      }),
-    };
-  }
-
-  static async findById(request) {
-    const { studentId } = request;
-
-    const existedStudent = await this.checkStudentMustBeExist(studentId);
-
-    return existedStudent;
-  }
-
-  static async findByClassId(request) {
-    const { classId, name } = request;
-    const filter = {};
-
-    if (name) {
-      filter.student = {
-        name: {
-          contains: name,
-          mode: "insensitive",
-        },
-      };
+    if (!existedStudentFromParent) {
+      return [];
     }
 
-    const existedClass = await ClassService.checkClassMustBeExist(classId);
-
-    const studentsClass = await db.studentClass.findMany({
-      where: {
-        classId: existedClass.id,
-        ...filter,
-      },
-      select: {
-        student: {
-          select: {
-            id: true,
-            nisn: true,
-            name: true,
-            gender: true,
-            email: true,
-            no_telp: true,
-            studentClass: true,
-            parent: {
-              select: {
-                id: true,
-                address: true,
-                user: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
-            createdAt: true,
-          },
-        },
-        class: true,
-      },
-    });
-
-    return {
-      class: {
-        id: existedClass.id,
-        name: existedClass.name,
-      },
-      teacher: {
-        id: existedClass.teacher.id,
-        nip: existedClass.teacher.nip,
-        name: existedClass.teacher.user.name,
-      },
-      students:
-        studentsClass.length > 0
-          ? studentsClass.map((std) => {
-              return {
-                id: std.student.id,
-                nisn: std.student.nisn,
-                name: std.student.name,
-                gender: std.student.gender,
-                email: std.student.email,
-                no_telp: std.student.no_telp,
-                parent: {
-                  id: std.student.parent.id,
-                  name: std.student.parent.user.name,
-                },
-              };
-            })
-          : [],
-    };
+    return existedStudentFromParent.map((std) => toStudentJSON(std, { isWithParent: true, isWithClass: true }));
   }
 
   static async create(request) {
     const { name, nisn, email, no_telp, gender, parentId, loggedUserRole } = request;
+
+    // Check if user is admin or teacher
     checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
 
-    const existedParent = await ParentService.checkParentMustBeExist(parentId);
+    if (!name || !gender) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Name and Gender are required!");
+    }
 
+    // Check if parent is existed
+    const existedParent = await ParentService.findParentMustExist(parentId);
+
+    // Create student
     const createStudent = await db.student.create({
       data: {
         name: name,
-        email: email,
-        nisn: nisn,
-        no_telp: no_telp,
         gender: gender,
         parentId: existedParent.id,
+        ...(nisn && { nisn: nisn }),
+        ...(email && { email: email }),
+        ...(no_telp && { no_telp: no_telp }),
       },
-      select: {
-        id: true,
-        nisn: true,
-        name: true,
-        gender: true,
-        email: true,
-        no_telp: true,
-        studentClass: true,
-        parent: {
-          select: {
-            id: true,
-            address: true,
-            user: {
-              select: {
-                name: true,
-              },
-            },
+      include: {
+        studentClass: {
+          include: {
+            class: true,
           },
         },
-        createdAt: true,
+        parent: true,
       },
     });
 
-    return {
-      id: createStudent.id,
-      nisn: createStudent.nisn,
-      name: createStudent.name,
-      gender: createStudent.gender,
-      email: createStudent.email,
-      no_telp: createStudent.no_telp,
-      classCount: createStudent?.studentClass?.length,
-      parent: {
-        id: createStudent?.parent?.id ?? null,
-        name: createStudent?.parent?.user?.name ?? null,
-        address: createStudent?.parent?.address ?? null,
-      },
-      createdAt: createStudent.createdAt,
-    };
-  }
-
-  static async setStudentToClass(request) {
-    const { studentId, classId, loggedUserRole } = request;
-    checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
-
-    const existedStudent = await StudentService.checkStudentMustBeExist(studentId);
-    const existedClass = await ClassService.checkClassMustBeExist(classId);
-
-    const existedStudentClass = await db.studentClass.findFirst({
-      where: {
-        studentId: existedStudent.id,
-        classId: existedClass.id,
-      },
-    });
-
-    if (existedStudentClass) {
-      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Student already in class!");
-    }
-
-    const createStudentClass = await db.studentClass.create({
-      data: {
-        studentId: existedStudent.id,
-        classId: existedClass.id,
-      },
-      select: {
-        student: {
-          select: {
-            id: true,
-            nisn: true,
-            name: true,
-            gender: true,
-            email: true,
-            no_telp: true,
-            studentClass: true,
-            parent: {
-              select: {
-                id: true,
-                address: true,
-                user: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
-            createdAt: true,
-          },
-        },
-        class: true,
-      },
-    });
-
-    return {
-      class: {
-        id: existedClass.id,
-        name: existedClass.name,
-      },
-      teacher: {
-        id: existedClass.teacher.id,
-        nip: existedClass.teacher.nip,
-        name: existedClass.teacher.user.name,
-      },
-      students:
-        createStudentClass.length > 0
-          ? createStudentClass.map((std) => {
-              return {
-                id: std.student.id,
-                nisn: std.student.nisn,
-                name: std.student.name,
-                gender: std.student.gender,
-                email: std.student.email,
-                no_telp: std.student.no_telp,
-                parent: {
-                  id: std.student.parent.id,
-                  name: std.student.parent.user.name,
-                },
-              };
-            })
-          : [],
-    };
-  }
-
-  static async removeStudentFromClass(request) {
-    const { studentId, classId, loggedUserRole } = request;
-    checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
-
-    const existedStudent = await StudentService.checkStudentMustBeExist(studentId);
-    const existedClass = await ClassService.checkClassMustBeExist(classId);
-
-    const existedStudentClass = await db.studentClass.findFirst({
-      where: {
-        studentId: existedStudent.id,
-        classId: existedClass.id,
-      },
-    });
-
-    if (!existedStudentClass) {
-      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Student not in class!");
-    }
-
-    await db.studentClass.delete({
-      where: {
-        id: existedStudentClass.id,
-      },
-    });
-
-    return true;
+    return toStudentJSON(createStudent, { isWithParent: true, isWithClass: true });
   }
 
   static async update(request) {
     const { studentId, name, nisn, email, no_telp, gender, parentId, loggedUserRole } = request;
+
+    // Check if user is admin or teacher
     checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
 
-    const existedStudent = await StudentService.checkStudentMustBeExist(studentId);
+    // Check if student is existed
+    const existedStudent = await StudentService.findStudentMustExist(studentId);
 
+    // Check if parent is existed
     if (parentId) {
-      await ParentService.checkParentMustBeExist(parentId);
+      await ParentService.findParentMustExist(parentId);
     }
 
     const updatedStudent = await db.student.update({
       where: {
-        id: studentId,
+        id: existedStudent.id,
       },
       data: {
-        name: name ?? existedStudent.name,
-        email: email ?? existedStudent.email,
-        nisn: nisn ?? existedStudent.nisn,
-        no_telp: no_telp ?? existedStudent.no_telp,
-        gender: gender ?? existedStudent.gender,
-        parentId: parentId ?? existedStudent?.parent?.id,
+        ...(name && { name: name }),
+        ...(gender && { gender: gender }),
+        ...(parentId && { parentId: parentId }),
+        ...(nisn && { nisn: nisn }),
+        ...(email && { email: email }),
+        ...(no_telp && { no_telp: no_telp }),
       },
-      select: {
-        id: true,
-        nisn: true,
-        name: true,
-        gender: true,
-        email: true,
-        no_telp: true,
+      include: {
         studentClass: {
-          select: {
-            class: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            student: true,
+          include: {
+            class: true,
           },
         },
-        parent: {
-          select: {
-            id: true,
-            address: true,
-            user: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-        createdAt: true,
+        parent: true,
       },
     });
 
-    return {
-      id: updatedStudent.id,
-      nisn: updatedStudent.nisn,
-      name: updatedStudent.name,
-      gender: updatedStudent.gender,
-      email: updatedStudent.email,
-      no_telp: updatedStudent.no_telp,
-      classCount: updatedStudent?.studentClass?.length,
-      parent: {
-        id: updatedStudent?.parent?.id ?? null,
-        name: updatedStudent?.parent?.user?.name ?? null,
-        address: updatedStudent?.parent?.address ?? null,
-      },
-      createdAt: updatedStudent.createdAt,
-    };
+    return toStudentJSON(updatedStudent, { isWithParent: true, isWithClass: true });
   }
 
   static async delete(request) {
     const { studentId, loggedUserRole } = request;
+
+    // Check if user is admin or teacher
     checkAllowedRole(ROLE.IS_ADMIN_TEACHER, loggedUserRole);
 
-    const existedStudent = await StudentService.checkStudentMustBeExist(studentId);
+    // Check if student is existed
+    const existedStudent = await StudentService.findStudentMustExist(studentId);
 
     await db.student.delete({
       where: {
@@ -536,6 +204,6 @@ export class StudentService {
       },
     });
 
-    return true;
+    return existedStudent;
   }
 }

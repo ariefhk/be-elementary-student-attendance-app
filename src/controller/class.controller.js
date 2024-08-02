@@ -7,8 +7,8 @@ export class ClassController {
     try {
       const createClassRequest = {
         loggedUserRole: req.loggedUser.role,
-        name: req?.body?.name,
         teacherId: req?.body?.teacherId ? Number(req?.body?.teacherId) : null,
+        name: req?.body?.name,
       };
 
       const result = await ClassService.create(createClassRequest);
@@ -33,20 +33,6 @@ export class ClassController {
     }
   }
 
-  static async findById(req, res, next) {
-    try {
-      const findClassByIdRequest = {
-        loggedUserRole: req.loggedUser.role,
-        classId: req?.params?.classId ? Number(req?.params?.classId) : null,
-      };
-      const result = await ClassService.findById(findClassByIdRequest);
-
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Get Class By Id", result));
-    } catch (error) {
-      next(error);
-    }
-  }
-
   static async findByTeacherId(req, res, next) {
     try {
       const findClassByTeacherIdRequest = {
@@ -54,24 +40,9 @@ export class ClassController {
         teacherId: req?.params?.teacherId ? Number(req?.params?.teacherId) : null,
       };
 
-      console.log(findClassByTeacherIdRequest);
       const result = await ClassService.findByTeacherId(findClassByTeacherIdRequest);
 
       return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Get Class By Teacher Id", result));
-    } catch (error) {
-      next(error);
-    }
-  }
-  static async findByStudentId(req, res, next) {
-    try {
-      const findClassByStudentIdRequest = {
-        loggedUserRole: req.loggedUser.role,
-        studentId: req?.params?.studentId ? Number(req?.params?.studentId) : null,
-      };
-
-      const result = await ClassService.findByStudentId(findClassByStudentIdRequest);
-
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Get Class By Student Id", result));
     } catch (error) {
       next(error);
     }
@@ -83,12 +54,12 @@ export class ClassController {
         loggedUserRole: req.loggedUser.role,
         teacherId: req?.body?.teacherId ? Number(req?.body?.teacherId) : null,
         classId: req?.params?.classId ? Number(req?.params?.classId) : null,
-        name: req?.body?.name,
+        name: req?.body?.name && req.body.name !== "undefined" ? req.body.name : null,
       };
 
       const result = await ClassService.update(updateClassRequest);
 
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Update Class", result));
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Update Class!", result));
     } catch (error) {
       next(error);
     }
@@ -100,9 +71,9 @@ export class ClassController {
         loggedUserRole: req.loggedUser.role,
         classId: req?.params?.classId ? Number(req?.params?.classId) : null,
       };
-      await ClassService.delete(deleteClassRequest);
+      const result = await ClassService.delete(deleteClassRequest);
 
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Delete Class"));
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Delete Class!", result));
     } catch (error) {
       next(error);
     }

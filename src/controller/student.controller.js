@@ -11,36 +11,7 @@ export class StudentController {
       };
 
       const result = await StudentService.findAll(findAllStudentRequest);
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Find All Student", result));
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async findByClassId(req, res, next) {
-    try {
-      const findStudentByClassIdRequest = {
-        loggedUserRole: req.loggedUser.role,
-        classId: req?.params?.classId ? Number(req?.params?.classId) : null,
-        name: req?.query?.name ? req.query.name : null,
-      };
-
-      const result = await StudentService.findByClassId(findStudentByClassIdRequest);
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Find Student By Class", result));
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async findById(req, res, next) {
-    try {
-      const findStudentByIdRequest = {
-        loggedUserRole: req.loggedUser.role,
-        studentId: req?.params?.studentId ? Number(req?.params?.studentId) : null,
-      };
-
-      const result = await StudentService.findById(findStudentByIdRequest);
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Find Student By Id", result));
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Find All Student!", result));
     } catch (error) {
       next(error);
     }
@@ -55,37 +26,7 @@ export class StudentController {
       };
 
       const result = await StudentService.findByParentId(findStudentByParentIdRequest);
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Find Student By Parent", result));
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async setStudentToClass(req, res, next) {
-    try {
-      const setStudentToClassRequest = {
-        loggedUserRole: req.loggedUser.role,
-        classId: req?.params?.classId ? Number(req?.params?.classId) : null,
-        studentId: req?.params?.studentId ? Number(req?.params?.studentId) : null,
-      };
-
-      const result = await StudentService.setStudentToClass(setStudentToClassRequest);
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Set Student To Class", result));
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async removeStudentFromClass(req, res, next) {
-    try {
-      const removeStudentFromClassRequest = {
-        loggedUserRole: req.loggedUser.role,
-        classId: req?.params?.classId ? Number(req?.params?.classId) : null,
-        studentId: req?.params?.studentId ? Number(req?.params?.studentId) : null,
-      };
-
-      await StudentService.removeStudentFromClass(removeStudentFromClassRequest);
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Remove Student From Class"));
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Find Student By Parent!", result));
     } catch (error) {
       next(error);
     }
@@ -95,16 +36,16 @@ export class StudentController {
     try {
       const createStudentRequest = {
         loggedUserRole: req.loggedUser.role,
+        parentId: req?.body?.parentId ? Number(req.body.parentId) : null,
         name: req?.body?.name,
+        gender: req?.body?.gender,
         nisn: req?.body?.nisn,
         email: req?.body?.email,
         no_telp: req?.body?.no_telp,
-        gender: req?.body?.gender,
-        parentId: req?.body?.parentId ? Number(req?.body?.parentId) : null,
       };
 
       const result = await StudentService.create(createStudentRequest);
-      return res.status(API_STATUS_CODE.CREATED).json(ResponseHelper.toJson("Success Create Student", result));
+      return res.status(API_STATUS_CODE.CREATED).json(ResponseHelper.toJson("Success Create Student!", result));
     } catch (error) {
       next(error);
     }
@@ -114,19 +55,17 @@ export class StudentController {
     try {
       const updateStudentRequest = {
         loggedUserRole: req.loggedUser.role,
-        studentId: req?.params?.studentId ? Number(req?.params?.studentId) : null,
-        parentId: req?.body?.parentId ? Number(req?.body?.parentId) : null,
+        studentId: req?.params?.studentId ? Number(req.params.studentId) : null,
+        parentId: req?.body?.parentId ? Number(req.body.parentId) : null,
         name: req?.body?.name,
+        gender: req?.body?.gender,
         nisn: req?.body?.nisn,
         email: req?.body?.email,
         no_telp: req?.body?.no_telp,
-        gender: req?.body?.gender,
       };
 
-      console.log(updateStudentRequest);
-
       const result = await StudentService.update(updateStudentRequest);
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Update Student", result));
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Update Student!", result));
     } catch (error) {
       next(error);
     }
@@ -136,11 +75,11 @@ export class StudentController {
     try {
       const deleteStudentRequest = {
         loggedUserRole: req.loggedUser.role,
-        studentId: req?.params?.studentId ? Number(req?.params?.studentId) : null,
+        studentId: req?.params?.studentId ? Number(req.params.studentId) : null,
       };
 
-      await StudentService.delete(deleteStudentRequest);
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Delete Student"));
+      const result = await StudentService.delete(deleteStudentRequest);
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Delete Student!", result));
     } catch (error) {
       next(error);
     }

@@ -1,8 +1,8 @@
 export const helloPrefix = "/api/hello";
 export const authApiPrefix = "/api/auth";
-export const userApiPrefix = "/api/users";
-export const parentApiPrefix = "/api/parents";
-export const studentApiPrefix = "/api/students";
-export const classApiPrefix = "/api/classes";
-export const teacherApiPrefix = "/api/teachers";
-export const attendanceApiPrefix = "/api/attendances";
+export const userApiPrefix = "/api/user";
+export const parentApiPrefix = "/api/parent";
+export const studentApiPrefix = "/api/student";
+export const classApiPrefix = "/api/class";
+export const teacherApiPrefix = "/api/teacher";
+export const attendanceApiPrefix = "/api/attendance";

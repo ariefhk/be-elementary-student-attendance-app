@@ -3,35 +3,38 @@ import { API_STATUS_CODE } from "../helper/status-code.helper.js";
 import { UserService } from "../service/user.service.js";
 
 export class UserController {
-  static async create(req, res, next) {
-    try {
-      const createUserRequest = {
-        loggedUserRole: req.loggedUser.role,
-        name: req?.body?.name,
-        email: req?.body?.email,
-        photo: req?.body?.photo,
-        nip: req?.body?.nip,
-        address: req?.body?.address,
-        password: req?.body?.password,
-        role: req?.body?.role,
-      };
-
-      const result = await UserService.create(createUserRequest);
-      return res.status(API_STATUS_CODE.CREATED).json(ResponseHelper.toJson("Success Create User", result));
-    } catch (error) {
-      next(error);
-    }
-  }
-
   static async login(req, res, next) {
     try {
       const loginUserRequest = {
         email: req?.body?.email,
         password: req?.body?.password,
       };
+
       const result = await UserService.login(loginUserRequest);
 
       return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Login User", result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateCurrentUser(req, res, next) {
+    try {
+      const updateUserRequest = {
+        loggedUserId: req.loggedUser.id ? Number(req.loggedUser.id) : null,
+        loggedUserRole: req.loggedUser.role ? req.loggedUser.role : null,
+        email: req?.body?.email,
+        password: req?.body?.password,
+        name: req?.body?.name,
+        nip: req?.body?.nip,
+        photo: req?.body?.photo,
+        gender: req?.body?.gender,
+        address: req?.body?.address,
+      };
+
+      const result = await UserService.update(updateUserRequest);
+
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Update Current User Login!", result));
     } catch (error) {
       next(error);
     }
@@ -50,12 +53,13 @@ export class UserController {
   static async logout(req, res, next) {
     try {
       const logoutUserRequest = {
-        userId: req.loggedUser.id ? Number(req.loggedUser.id) : null,
+        loggedUserId: req.loggedUser.id ? Number(req.loggedUser.id) : null,
+        loggedUserRole: req.loggedUser.role ? req.loggedUser.role : null,
       };
 
-      await UserService.logout(logoutUserRequest);
+      const result = await UserService.logout(logoutUserRequest);
 
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Logout User"));
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Logout User", result));
     } catch (error) {
       next(error);
     }

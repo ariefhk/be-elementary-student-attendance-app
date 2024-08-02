@@ -36,11 +36,13 @@ export class ParentController {
     try {
       const createParentRequest = {
         loggedUserRole: req?.loggedUser?.role,
-        name: req?.body?.name,
         email: req?.body?.email,
+        password: req?.body?.password,
+        profilePicture: req?.file,
+        gender: req?.body?.gender,
+        name: req?.body?.name,
         photo: req?.body?.photo,
         address: req?.body?.address,
-        password: req?.body?.password,
       };
 
       const result = await ParentService.create(createParentRequest);
@@ -55,8 +57,10 @@ export class ParentController {
       const updateParentRequest = {
         loggedUserRole: req?.loggedUser?.role,
         parentId: req?.params?.parentId ? Number(req.params.parentId) : null,
-        name: req?.body?.name,
         email: req?.body?.email,
+        password: req?.body?.password,
+        profilePicture: req?.file,
+        name: req?.body?.name,
         photo: req?.body?.photo,
         address: req?.body?.address,
       };
@@ -74,8 +78,8 @@ export class ParentController {
         loggedUserRole: req?.loggedUser?.role,
         parentId: req?.params?.parentId ? Number(req.params.parentId) : null,
       };
-      await ParentService.delete(deleteParentRequest);
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success delete parent!"));
+      const result = await ParentService.delete(deleteParentRequest);
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success delete parent!", result));
     } catch (error) {
       next(error);
     }

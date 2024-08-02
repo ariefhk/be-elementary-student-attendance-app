@@ -36,12 +36,14 @@ export class TeacherController {
     try {
       const createTeacherRequest = {
         loggedUserRole: req?.loggedUser?.role,
-        name: req?.body?.name,
-        email: req?.body?.email,
-        photo: req?.body?.photo,
-        nip: req?.body?.nip,
-        address: req?.body?.address,
-        password: req?.body?.password,
+        email: req?.body?.email && req.body.email !== "undefined" ? req.body.email : null,
+        password: req?.body?.password && req.body.password !== "undefined" ? req.body.password : null,
+        profilePicture: req?.file,
+        name: req?.body?.name && req.body.name !== "undefined" ? req.body.name : null,
+        nip: req?.body?.nip && req.body.nip !== "undefined" ? req.body.nip : null,
+        gender: req?.body?.gender && req.body.gender !== "undefined" ? req.body.gender : null,
+        photo: req?.body?.photo && req.body.photo !== "undefined" ? req.body.photo : null,
+        address: req?.body?.address && req.body.address !== "undefined" ? req.body.address : null,
       };
 
       const result = await TeacherService.create(createTeacherRequest);
@@ -56,16 +58,18 @@ export class TeacherController {
       const updateTeacherRequest = {
         loggedUserRole: req?.loggedUser?.role,
         teacherId: req?.params?.teacherId ? Number(req.params.teacherId) : null,
-        name: req?.body?.name,
-        email: req?.body?.email,
-        photo: req?.body?.photo,
-        nip: req?.body?.nip,
-        address: req?.body?.address,
-        password: req?.body?.password,
+        email: req?.body?.email && req.body.email !== "undefined" ? req.body.email : null,
+        password: req?.body?.password && req.body.password !== "undefined" ? req.body.password : null,
+        profilePicture: req?.file,
+        name: req?.body?.name && req.body.name !== "undefined" ? req.body.name : null,
+        nip: req?.body?.nip && req.body.nip !== "undefined" ? req.body.nip : null,
+        gender: req?.body?.gender && req.body.gender !== "undefined" ? req.body.gender : null,
+        photo: req?.body?.photo && req.body.photo !== "undefined" ? req.body.photo : null,
+        address: req?.body?.address && req.body.address !== "undefined" ? req.body.address : null,
       };
 
       const result = await TeacherService.update(updateTeacherRequest);
-      return res.status(API_STATUS_CODE.CREATED).json(ResponseHelper.toJson("Success update teacher", result));
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success update teacher", result));
     } catch (error) {
       next(error);
     }
@@ -77,8 +81,8 @@ export class TeacherController {
         loggedUserRole: req?.loggedUser?.role,
         teacherId: req?.params?.teacherId ? Number(req.params.teacherId) : null,
       };
-      await TeacherService.delete(deleteTeacherRequest);
-      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success delete teacher!"));
+      const result = await TeacherService.delete(deleteTeacherRequest);
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success delete teacher!", result));
     } catch (error) {
       next(error);
     }

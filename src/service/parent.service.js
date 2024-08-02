@@ -3,74 +3,57 @@ import { APIError } from "../error/api.error.js";
 import { API_STATUS_CODE } from "../helper/status-code.helper.js";
 import { checkAllowedRole, ROLE } from "../helper/check-role.helper.js";
 import { UserService } from "./user.service.js";
+import { toParentJSON } from "../model/parent.model.js";
+import { createBcryptPassword } from "../helper/hashing.helper.js";
+import { saveFile } from "../helper/file.helper.js";
+import { BASE_FILE, IMG_PROFILE_FILE } from "../constants/file-directory.js";
 
 export class ParentService {
-  static async checkParentMustBeExistByUserId(userId) {
-    if (!userId) {
-      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "User id is required");
-    }
-
-    const existedParent = await db.parent.findFirst({
-      where: {
-        userId: userId,
-      },
-      select: {
-        id: true,
-        address: true,
-        user: {
-          select: {
-            id: true,
-            photo: true,
-            name: true,
-            email: true,
-          },
-        },
-        createdAt: true,
-      },
-    });
-
-    if (!existedParent) {
-      throw new APIError(API_STATUS_CODE.NOT_FOUND, "Parent not found");
-    }
-
-    return existedParent;
-  }
-
-  static async checkParentMustBeExist(parentId) {
+  static async findParentMustExist(parentId, option = { isWithUser: false, isWithStudent: false }) {
+    // Check if parent id is existed
     if (!parentId) {
       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Parent id is required");
     }
 
-    const existedParent = await db.parent.findUnique({
+    // Find parent by id
+    const parent = await db.parent.findUnique({
       where: {
         id: parentId,
       },
-      select: {
-        id: true,
-        address: true,
-        user: {
-          select: {
-            id: true,
-            photo: true,
-            name: true,
-            email: true,
-          },
-        },
-        createdAt: true,
+      include: {
+        user: true,
+        student: true,
       },
     });
 
-    if (!existedParent) {
-      throw new APIError(API_STATUS_CODE.NOT_FOUND, "Parent not found");
+    if (!parent) {
+      throw new APIError(API_STATUS_CODE.NOT_FOUND, "Parent not found!");
     }
+
+    return toParentJSON(parent, option);
+  }
+
+  static async findById(request) {
+    const { parentId, loggedUserRole } = request;
+
+    // check logged user
+    checkAllowedRole(ROLE.IS_ALL_ROLE, loggedUserRole);
+
+    // check if parent is existed
+    const existedParent = await this.findParentMustExist(parentId, {
+      isWithStudent: true,
+      isWithUser: true,
+    });
 
     return existedParent;
   }
 
   static async findAll(request) {
     const { loggedUserRole, name } = request;
-    const filter = {};
+
+    // check logged user
     checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
+    const filter = {};
 
     // Check if name is existed
     if (name) {
@@ -82,6 +65,7 @@ export class ParentService {
       };
     }
 
+    // Find all parents
     const parents = await db.parent.findMany({
       orderBy: [
         {
@@ -89,120 +73,176 @@ export class ParentService {
         },
       ],
       where: filter,
-      select: {
-        id: true,
-        address: true,
-        user: {
-          select: {
-            id: true,
-            photo: true,
-            name: true,
-            email: true,
-          },
-        },
-        createdAt: true,
+      include: {
+        student: true,
+        user: true,
       },
     });
 
-    return parents.map((user) => {
-      return {
-        id: user.id,
-        name: user.user.name,
-        photo: user.user.photo,
-        email: user.user.email,
-        address: user.address,
-        createdAt: user.createdAt,
-      };
-    });
-  }
-
-  static async findById(request) {
-    const { loggedUserRole, teacherId } = request;
-    checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
-
-    // check if parent is existed
-    const existedParent = await this.checkParentMustBeExist(teacherId);
-
-    return {
-      id: existedParent.id,
-      name: existedParent.user.name,
-      photo: existedParent.user.photo,
-      email: existedParent.user.email,
-      address: existedParent.address,
-      createdAt: existedParent.createdAt,
-    };
-  }
-
-  static async findByUserId(request) {
-    const { loggedUserRole, userId } = request;
-    checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
-
-    // check if parent is existed
-    const existedParent = await this.checkParentMustBeExistByUserId(userId);
-
-    return {
-      id: existedParent.id,
-      name: existedParent.user.name,
-      photo: existedParent.user.photo,
-      email: existedParent.user.email,
-      address: existedParent.address,
-      createdAt: existedParent.createdAt,
-    };
+    return parents.map((parent) => toParentJSON(parent, { isWithUser: true, isWithStudent: true }));
   }
 
   static async create(request) {
-    const { loggedUserRole, name, email, photo, address, password } = request;
+    const { email, password, name, profilePicture, address, gender, loggedUserRole } = request;
+
+    // Check if logged user is admin
     checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
 
-    const createParentObj = {
-      name: name,
-      email: email,
-      photo: photo,
-      address: address,
-      password: password,
-      role: "PARENT",
-      loggedUserRole: loggedUserRole,
-    };
+    // Check if all field is required
+    if (!email || !password || !gender || !name) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "All field is required!");
+    }
 
-    const parent = await UserService.create(createParentObj);
+    // Check if email is existed
+    const existedUserByEmail = await UserService.findUserByEmail(email);
 
-    return parent;
+    // Check if email is existed
+    if (existedUserByEmail) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Email already used!");
+    }
+
+    // Hash password
+    const hashedPassword = await createBcryptPassword(password);
+
+    const createParentProcess = await db.$transaction(async (prismaTrans) => {
+      try {
+        // Update token
+        const createdUser = await prismaTrans.user.create({
+          data: { email, password: hashedPassword, role: "TEACHER" },
+        });
+
+        // Create teacher
+        const createdParent = await prismaTrans.parent.create({
+          data: {
+            userId: createdUser.id,
+            name,
+            gender,
+            ...(profilePicture && {
+              profilePicture: await saveFile(profilePicture, createdUser.id, BASE_FILE, IMG_PROFILE_FILE),
+            }),
+            ...(address && { address: address }),
+          },
+          include: {
+            user: true,
+            student: true,
+          },
+        });
+
+        return toParentJSON(createdParent, { isWithUser: true, isWithStudent: true });
+      } catch (error) {
+        console.error("Error inside transaction create parent:", error.message);
+        throw new APIError(API_STATUS_CODE.BAD_REQUEST, "failed login user!"); // Re-throw to ensure transaction is rolled back
+      }
+    });
+
+    return createParentProcess;
   }
 
   static async update(request) {
-    const { loggedUserRole, parentId, name, email, photo, address, password } = request;
+    const { parentId, email, password, name, profilePicture, address, gender, loggedUserRole } = request;
+
+    // Check if logged user is admin
     checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
 
-    // check if parent is existed
-    const existedParent = await this.checkParentMustBeExist(parentId);
+    // check if teacher is existed
+    const existedParent = await this.findParentMustExist(parentId, { isWithUser: true });
 
-    const updateParentObj = {
-      userId: existedParent.user.id,
-      loggedUserRole: loggedUserRole,
-      name: name,
-      email: email,
-      photo: photo,
-      address: address,
-      password: password,
-    };
+    // Check if email is already existed
+    if (email) {
+      const existedUserWithSameEmail = await db.user.findFirst({
+        where: {
+          email: email,
+          id: {
+            not: existedParent.user.id,
+          },
+        },
+      });
 
-    const parent = await UserService.update(updateParentObj);
+      // throw error if email is already existed
+      if (existedUserWithSameEmail) {
+        throw new APIError({
+          status: API_STATUS_CODE.BAD_REQUEST,
+          message: "Email is already existed!",
+        });
+      }
+    }
 
-    return parent;
+    const updateParentProcess = await db.$transaction(async (prismaTransaction) => {
+      try {
+        // Update user data
+        if (email || password) {
+          await prismaTransaction.user.update({
+            where: {
+              id: existedParent.user.id,
+            },
+            data: {
+              ...(email && { email: email }),
+              ...(password && { password: await createBcryptPassword(password) }),
+            },
+          });
+        }
+
+        // Update teacher data
+        const updatedParent = await db.parent.update({
+          where: {
+            id: existedParent.id,
+          },
+          data: {
+            ...(name && { name: name }),
+            ...(gender && { gender: gender }),
+            ...(profilePicture && {
+              profilePicture: await saveFile(profilePicture, createdUser.id, BASE_FILE, IMG_PROFILE_FILE),
+            }),
+            ...(address && { address: address }),
+          },
+          include: {
+            user: true,
+            student: true,
+          },
+        });
+
+        return toParentJSON(updatedParent, { isWithUser: true, isWithStudent: true });
+      } catch (error) {
+        console.log("Error update parent: ", error);
+        throw new APIError({
+          status: API_STATUS_CODE.BAD_REQUEST,
+          message: error.message,
+        });
+      }
+    });
+
+    return updateParentProcess;
   }
 
   static async delete(request) {
     const { loggedUserRole, parentId } = request;
+    // Check if logged user is admin
     checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
 
-    // check if parent is existed
-    const existedParent = await this.checkParentMustBeExist(parentId);
+    // check if teacher is existed
+    const existedParent = await this.findParentMustExist(parentId, { isWithUser: true });
 
-    await UserService.delete({
-      userId: existedParent.user.id,
-      loggedUserRole: loggedUserRole,
+    await db.$transaction(async (prismaTrans) => {
+      try {
+        // Delete teacher data
+        await prismaTrans.parent.delete({
+          where: {
+            id: existedParent.id,
+          },
+        });
+
+        // Delete user data
+        await prismaTrans.user.delete({
+          where: {
+            id: existedParent.user.id,
+          },
+        });
+      } catch (error) {
+        console.error("Error inside transaction delete parent:", error.message);
+        throw new APIError(API_STATUS_CODE.BAD_REQUEST, "failed delete parent!"); // Re-throw to ensure transaction is rolled back
+      }
     });
 
-    return true;
+    return existedParent;
   }
 }
