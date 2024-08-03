@@ -2,9 +2,10 @@ export function toTeacherJSON(teacher, option = { isWithUser: false, isWithClass
   return {
     id: teacher?.id,
     name: teacher?.name,
-    email: teacher?.email,
+    email: teacher?.user?.email,
     profilePicture: teacher?.profilePicture || null,
     nip: teacher?.nip || null,
+    gender: teacher?.gender || null,
     address: teacher?.address || null,
     classCount: teacher?.class?.length || 0,
     ...(option?.isWithUser

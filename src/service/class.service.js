@@ -91,6 +91,20 @@ export class ClassService {
     return toClassJSON(existedClassByName, option);
   }
 
+  static async findById(request) {
+    const { classId, loggedUserRole } = request;
+
+    // check logged user
+    checkAllowedRole(ROLE.IS_ALL_ROLE, loggedUserRole);
+
+    // check if class is existed
+    const existedClass = await this.findClassMustExist(classId, {
+      isWithTeacher: true,
+    });
+
+    return existedClass;
+  }
+
   static async findAll(request) {
     const { loggedUserRole, name } = request;
 

@@ -32,6 +32,11 @@ function toStudentInClassJSON(
                     id: stdCls?.student?.id || null,
                     name: stdCls?.student?.name || null,
                     nisn: stdCls?.student?.nisn || null,
+                    gender: stdCls?.student?.gender || null,
+                    parent: {
+                      id: stdCls?.student?.parent?.id || null,
+                      name: stdCls?.student?.parent?.name || null,
+                    },
                   };
                 })
               : [],
@@ -137,7 +142,11 @@ export class StudentClassService {
         classId: existedClass.id,
       },
       include: {
-        student: true,
+        student: {
+          include: {
+            parent: true,
+          },
+        },
       },
     });
 

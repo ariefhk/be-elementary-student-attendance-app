@@ -72,6 +72,17 @@ export class StudentService {
     return students.map((std) => toStudentJSON(std, { isWithParent: true, isWithClass: true }));
   }
 
+  static async findById(request) {
+    const { studentId, loggedUserRole } = request;
+
+    // Check if user is admin parent
+    checkAllowedRole(ROLE.IS_ALL_ROLE, loggedUserRole);
+
+    const existedStudent = await this.findStudentMustExist(studentId, { isWithParent: true, isWithClass: true });
+
+    return existedStudent;
+  }
+
   static async findByParentId(request) {
     const { parentId, name, loggedUserRole } = request;
 

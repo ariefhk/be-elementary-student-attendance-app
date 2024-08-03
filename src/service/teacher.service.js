@@ -54,11 +54,9 @@ export class TeacherService {
 
     // Check if name is existed
     if (name) {
-      filter.user = {
-        name: {
-          contains: name,
-          mode: "insensitive",
-        },
+      filter.name = {
+        contains: name,
+        mode: "insensitive",
       };
     }
 

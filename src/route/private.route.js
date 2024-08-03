@@ -49,6 +49,7 @@ privateRouter.get(classApiPrefix + "/student/:studentId", authMiddleware, Studen
 privateRouter.get(classApiPrefix + "/teacher/:teacherId", authMiddleware, ClassController.findByTeacherId);
 privateRouter.put(classApiPrefix + "/:classId", authMiddleware, ClassController.update);
 privateRouter.delete(classApiPrefix + "/:classId", authMiddleware, ClassController.delete);
+privateRouter.get(classApiPrefix + "/:classId", authMiddleware, ClassController.findById);
 privateRouter.get(classApiPrefix, authMiddleware, ClassController.findAll);
 privateRouter.post(classApiPrefix, authMiddleware, ClassController.create);
 
@@ -57,6 +58,7 @@ privateRouter.get(studentApiPrefix + "/class/:classId", authMiddleware, StudentC
 privateRouter.get(studentApiPrefix + "/parent/:parentId", authMiddleware, StudentController.findByParentId);
 privateRouter.put(studentApiPrefix + "/:studentId", authMiddleware, StudentController.update);
 privateRouter.delete(studentApiPrefix + "/:studentId", authMiddleware, StudentController.delete);
+privateRouter.get(studentApiPrefix + "/:studentId", authMiddleware, StudentController.findById);
 privateRouter.get(studentApiPrefix, authMiddleware, StudentController.findAll);
 privateRouter.post(studentApiPrefix, authMiddleware, StudentController.create);
 

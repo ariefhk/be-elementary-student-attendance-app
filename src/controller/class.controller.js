@@ -17,6 +17,20 @@ export class ClassController {
       next(error);
     }
   }
+  static async findById(req, res, next) {
+    try {
+      const findClassByIdRequest = {
+        loggedUserRole: req.loggedUser.role,
+        classId: req?.params?.classId ? Number(req?.params?.classId) : null,
+      };
+
+      const result = await ClassService.findById(findClassByIdRequest);
+
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Get Class By Id", result));
+    } catch (error) {
+      next(error);
+    }
+  }
 
   static async findAll(req, res, next) {
     try {

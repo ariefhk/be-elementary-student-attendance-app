@@ -17,6 +17,20 @@ export class StudentController {
     }
   }
 
+  static async findById(req, res, next) {
+    try {
+      const findStudentByIdRequest = {
+        loggedUserRole: req.loggedUser.role,
+        studentId: req?.params?.studentId ? Number(req?.params?.studentId) : null,
+        name: req?.query?.name ? req.query.name : null,
+      };
+
+      const result = await StudentService.findById(findStudentByIdRequest);
+      return res.status(API_STATUS_CODE.OK).json(ResponseHelper.toJson("Success Find Student By Id!", result));
+    } catch (error) {
+      next(error);
+    }
+  }
   static async findByParentId(req, res, next) {
     try {
       const findStudentByParentIdRequest = {
