@@ -7,6 +7,7 @@ import { decodeJwt, makeJwt } from "../helper/jwt.helper.js";
 import { toUserJson, toUserJsonWithRole } from "../model/user.model.js";
 import { ParentService } from "./parent.service.js";
 import { TeacherService } from "./teacher.service.js";
+import { AdminService } from "./admin.service.js";
 
 export class UserService {
   static async findUserMustExist(
@@ -165,11 +166,11 @@ export class UserService {
           },
         });
 
-        let parentOrTeacherUserData;
+        let loggedUserRoleData;
 
         if (updatedUser.role === "PARENT") {
           // Get Parent Data
-          parentOrTeacherUserData = await prismaTrans.parent.findFirst({
+          loggedUserRoleData = await prismaTrans.parent.findFirst({
             where: {
               userId: updatedUser.id,
             },
@@ -179,10 +180,10 @@ export class UserService {
             },
           });
 
-          return toUserJsonWithRole(parentOrTeacherUserData, { isWithUser: true, isWithToken: true });
+          return toUserJsonWithRole(loggedUserRoleData, { isWithUser: true, isWithToken: true });
         } else if (updatedUser.role === "TEACHER") {
           // Get Teacher Data
-          parentOrTeacherUserData = await prismaTrans.teacher.findFirst({
+          loggedUserRoleData = await prismaTrans.teacher.findFirst({
             where: {
               userId: updatedUser.id,
             },
@@ -192,10 +193,18 @@ export class UserService {
             },
           });
 
-          return toUserJsonWithRole(parentOrTeacherUserData, { isWithUser: true, isWithClass: true, isWithToken: true });
-        } else {
+          return toUserJsonWithRole(loggedUserRoleData, { isWithUser: true, isWithClass: true, isWithToken: true });
+        } else if (updatedUser.role === "ADMIN") {
           // Return user data with token
-          return toUserJson(updatedUser, { isWithToken: true });
+          loggedUserRoleData = await prismaTrans.admin.findFirst({
+            where: {
+              userId: updatedUser.id,
+            },
+            include: {
+              user: true,
+            },
+          });
+          return toUserJsonWithRole(loggedUserRoleData, { isWithUser: true, isWithToken: true });
         }
       } catch (error) {
         console.error("Error inside transaction login user:", error.message);
@@ -329,76 +338,6 @@ export class UserService {
     return updateCurrentUserProcess;
   }
 
-  // static async create(request) {
-  //   const { name, photo, email, password, nip, address, role, loggedUserRole } = request;
-  //   checkAllowedRole(ROLE.IS_ADMIN, loggedUserRole);
-
-  //   if (!name || !email || !password || !role) {
-  //     throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Name, email, password, and role are required");
-  //   }
-
-  //   const countUser = await db.user.count({
-  //     where: {
-  //       email,
-  //     },
-  //   });
-
-  //   if (countUser > 0) {
-  //     throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Email already exists");
-  //   }
-
-  //   const hashedPassword = await createBcryptPassword(password);
-
-  //   const createUserProcess = await db.$transaction(async (prismaTrans) => {
-  //     try {
-  //       const createUser = await prismaTrans.user.create({
-  //         data: {
-  //           name,
-  //           photo,
-  //           email,
-  //           password: hashedPassword,
-  //           role,
-  //         },
-  //       });
-
-  //       let createParentOrTeacher;
-
-  //       if (createUser.role === "PARENT") {
-  //         createParentOrTeacher = await prismaTrans.parent.create({
-  //           data: {
-  //             address: address,
-  //             userId: createUser.id,
-  //           },
-  //         });
-  //       } else if (createUser.role === "TEACHER") {
-  //         createParentOrTeacher = await prismaTrans.teacher.create({
-  //           data: {
-  //             nip: nip,
-  //             address: address,
-  //             userId: createUser.id,
-  //           },
-  //         });
-  //       }
-
-  //       return {
-  //         id: createUser.id,
-  //         name: createUser.name,
-  //         photo: createUser.photo,
-  //         email: createUser.email,
-  //         ...(createUser.role === "TEACHER" ? { nip: createParentOrTeacher?.nip ?? null } : {}),
-  //         address: createParentOrTeacher.address ?? null,
-  //         role: createUser.role,
-  //         createdAt: createUser.createdAt,
-  //       };
-  //     } catch (error) {
-  //       console.error("Error inside transaction create user:", error.message);
-  //       throw new APIError(API_STATUS_CODE.BAD_REQUEST, "failed create user!"); // Re-throw to ensure transaction is rolled back
-  //     }
-  //   });
-
-  //   return createUserProcess;
-  // }
-
   static async checkToken(token) {
     // Check if token is empty
     if (!token) {
@@ -423,12 +362,12 @@ export class UserService {
     const existedUser = await this.findUserMustExist(decodedUser.id);
 
     // Get User Role Detail
-    let parentOrTeacherDetail;
+    let loggedUserRoleData;
 
     // Check if user role is PARENT or TEACHER
     if (existedUser.role === "PARENT") {
       // Get Parent Data
-      parentOrTeacherDetail = await db.parent.findFirst({
+      loggedUserRoleData = await db.parent.findFirst({
         where: {
           userId: existedUser.id,
         },
@@ -438,10 +377,10 @@ export class UserService {
         },
       });
 
-      return toUserJsonWithRole(parentOrTeacherDetail, { isWithUser: true });
+      return toUserJsonWithRole(loggedUserRoleData, { isWithUser: true });
     } else if (existedUser.role === "TEACHER") {
       // Get Teacher Data
-      parentOrTeacherDetail = await db.teacher.findFirst({
+      loggedUserRoleData = await db.teacher.findFirst({
         where: {
           userId: existedUser.id,
         },
@@ -450,10 +389,19 @@ export class UserService {
           user: true,
         },
       });
-      return toUserJsonWithRole(parentOrTeacherDetail, { isWithUser: true, isWithClass: true });
+      return toUserJsonWithRole(loggedUserRoleData, { isWithUser: true, isWithClass: true });
+    } else if (existedUser.role === "ADMIN") {
+      // Get Admin Data
+      loggedUserRoleData = await db.admin.findFirst({
+        where: {
+          userId: existedUser.id,
+        },
+        include: {
+          user: true,
+        },
+      });
+      return toUserJsonWithRole(loggedUserRoleData, { isWithUser: true });
     }
-
-    return toUserJson(existedUser);
   }
 
   static async delete(request) {
@@ -515,11 +463,12 @@ export class UserService {
         userId = existedTeacher.user.id;
         loggedUser = existedTeacher;
         break;
-
-      default:
-        const existedUser = await this.findUserMustExist(loggedUserId);
-        userId = existedUser.id;
-        loggedUser = existedUser;
+      case "ADMIN":
+        const existedAdmin = await AdminService.findAdminMustExist(loggedUserId, {
+          isWithUser: true,
+        });
+        userId = existedAdmin.user.id;
+        loggedUser = existedAdmin;
         break;
     }
 

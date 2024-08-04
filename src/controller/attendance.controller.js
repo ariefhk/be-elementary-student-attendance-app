@@ -79,6 +79,8 @@ export class AttendanceController {
           req?.body?.studentAttendances && req?.body?.studentAttendances !== "undefined" ? req.body.studentAttendances : [],
       };
 
+      console.log(createManyAttendanceRequest);
+
       const result = await AttendanceService.createOrUpdateMany(createManyAttendanceRequest);
       return res.status(API_STATUS_CODE.CREATED).json(ResponseHelper.toJson("Success Create Attendance", result));
     } catch (error) {

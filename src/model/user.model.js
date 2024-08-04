@@ -62,6 +62,26 @@ export function toUserJsonWithRole(
           : {}),
         createdAt: userData.createdAt,
       };
+    case "ADMIN":
+      return {
+        id: userData.id,
+        name: userData.name,
+        email: userData.user.email,
+        profilePicture: userData?.profilePicture || null,
+        gender: userData.gender,
+        address: userData.address || null,
+        role: userData.user.role,
+        ...(option?.isWithToken ? { token: userData?.user?.token } : {}),
+        ...(option?.isWithUser
+          ? {
+              user: {
+                id: userData.user.id,
+                email: userData.user.email,
+              },
+            }
+          : {}),
+        createdAt: userData.createdAt,
+      };
   }
 }
 

@@ -3,14 +3,24 @@ import { createBcryptPassword } from "../../helper/hashing.helper.js";
 import { UserService } from "../../service/user.service.js";
 
 const createManyAdminSeed = async () => {
-  for (let i = 0; i < 5; i++) {
-    await db.user.create({
+  for (let i = 0; i < 2; i++) {
+    const user = await db.user.create({
       data: {
         email: `admin${i}@gmail.com`,
         password: await createBcryptPassword("rahasia"),
         role: "ADMIN",
       },
     });
+
+    if (user) {
+      await db.admin.create({
+        data: {
+          name: `admin${i}`,
+          gender: "P",
+          userId: user.id,
+        },
+      });
+    }
   }
 };
 
