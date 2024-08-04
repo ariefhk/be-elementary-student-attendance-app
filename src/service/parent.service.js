@@ -191,7 +191,7 @@ export class ParentService {
             ...(name && { name: name }),
             ...(gender && { gender: gender }),
             ...(profilePicture && {
-              profilePicture: await saveFile(profilePicture, createdUser.id, BASE_FILE, IMG_PROFILE_FILE),
+              profilePicture: await saveFile(profilePicture, existedParent.user.id, BASE_FILE, IMG_PROFILE_FILE),
             }),
             ...(address && { address: address }),
           },

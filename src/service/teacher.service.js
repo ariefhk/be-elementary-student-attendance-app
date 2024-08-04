@@ -187,7 +187,7 @@ export class TeacherService {
             ...(gender && { gender: gender }),
             ...(nip && { nip: nip }),
             ...(profilePicture && {
-              profilePicture: await saveFile(profilePicture, createdUser.id, BASE_FILE, IMG_PROFILE_FILE),
+              profilePicture: await saveFile(profilePicture, existedTeacher.user.id, BASE_FILE, IMG_PROFILE_FILE),
             }),
             ...(address && { address: address }),
           },

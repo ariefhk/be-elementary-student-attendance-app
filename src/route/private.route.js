@@ -26,14 +26,24 @@ privateRouter.delete(authApiPrefix + "/logout", authMiddleware, UserController.l
 
 // TEACHER ROUTE
 privateRouter.get(teacherApiPrefix + "/:teacherId", authMiddleware, TeacherController.findById);
-privateRouter.put(teacherApiPrefix + "/:teacherId", authMiddleware, TeacherController.update);
+privateRouter.put(
+  teacherApiPrefix + "/:teacherId",
+  authMiddleware,
+  FileUploadMiddleware.uploadProfilePicture,
+  TeacherController.update
+);
 privateRouter.delete(teacherApiPrefix + "/:teacherId", authMiddleware, TeacherController.delete);
 privateRouter.get(teacherApiPrefix, authMiddleware, TeacherController.findAll);
 privateRouter.post(teacherApiPrefix, authMiddleware, FileUploadMiddleware.uploadProfilePicture, TeacherController.create);
 
 // PARENT ROUTE
 privateRouter.get(parentApiPrefix + "/:parentId", authMiddleware, ParentController.findById);
-privateRouter.put(parentApiPrefix + "/:parentId", authMiddleware, ParentController.update);
+privateRouter.put(
+  parentApiPrefix + "/:parentId",
+  authMiddleware,
+  FileUploadMiddleware.uploadProfilePicture,
+  ParentController.update
+);
 privateRouter.delete(parentApiPrefix + "/:parentId", authMiddleware, ParentController.delete);
 privateRouter.get(parentApiPrefix, authMiddleware, ParentController.findAll);
 privateRouter.post(parentApiPrefix, authMiddleware, FileUploadMiddleware.uploadProfilePicture, ParentController.create);
