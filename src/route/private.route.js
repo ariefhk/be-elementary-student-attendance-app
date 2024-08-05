@@ -21,7 +21,12 @@ const privateRouter = express.Router();
 
 // AUTH ROUTE
 privateRouter.get(authApiPrefix + "/me", authMiddleware, UserController.getCurrent);
-privateRouter.put(authApiPrefix + "/me/update", authMiddleware, UserController.updateCurrentUser);
+privateRouter.put(
+  authApiPrefix + "/me/update",
+  authMiddleware,
+  FileUploadMiddleware.uploadProfilePicture,
+  UserController.updateCurrentUser
+);
 privateRouter.delete(authApiPrefix + "/logout", authMiddleware, UserController.logout);
 
 // TEACHER ROUTE

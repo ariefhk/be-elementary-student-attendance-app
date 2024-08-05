@@ -8,6 +8,8 @@ import { toUserJson, toUserJsonWithRole } from "../model/user.model.js";
 import { ParentService } from "./parent.service.js";
 import { TeacherService } from "./teacher.service.js";
 import { AdminService } from "./admin.service.js";
+import { saveFile } from "../helper/file.helper.js";
+import { BASE_FILE, IMG_PROFILE_FILE } from "../constants/file-directory.js";
 
 export class UserService {
   static async findUserMustExist(
@@ -216,7 +218,7 @@ export class UserService {
   }
 
   static async update(request) {
-    const { name, photo, email, password, nip, address, gender, loggedUserRole, loggedUserId } = request;
+    const { name, photo, email, password, nip, address, profilePicture, gender, loggedUserRole, loggedUserId } = request;
 
     // Check if user is allowed to update
     checkAllowedRole(ROLE.IS_ALL_ROLE, loggedUserRole);
@@ -296,7 +298,9 @@ export class UserService {
               },
               data: {
                 ...(name && { name: name }),
-                ...(photo && { photo: photo }),
+                ...(profilePicture && {
+                  profilePicture: await saveFile(profilePicture, userId, BASE_FILE, IMG_PROFILE_FILE),
+                }),
                 ...(address && { address: address }),
                 ...(gender && { gender: gender }),
               },
@@ -314,7 +318,9 @@ export class UserService {
               },
               data: {
                 ...(name && { name: name }),
-                ...(photo && { photo: photo }),
+                ...(profilePicture && {
+                  profilePicture: await saveFile(profilePicture, userId, BASE_FILE, IMG_PROFILE_FILE),
+                }),
                 ...(nip && { nip: nip }),
                 ...(address && { address: address }),
                 ...(gender && { gender: gender }),

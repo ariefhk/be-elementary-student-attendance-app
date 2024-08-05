@@ -25,6 +25,7 @@ export class UserController {
         loggedUserRole: req.loggedUser.role ? req.loggedUser.role : null,
         email: req?.body?.email,
         password: req?.body?.password,
+        profilePicture: req?.file,
         name: req?.body?.name,
         nip: req?.body?.nip,
         photo: req?.body?.photo,
