@@ -4,8 +4,10 @@ import { API_STATUS_CODE } from "../helper/status-code.helper.js";
 import { checkAllowedRole, ROLE } from "../helper/check-role.helper.js";
 import { StudentService } from "./student.service.js";
 import { ClassService } from "./class.service.js";
-import { transformDate, getWeekMonToSaturdayDates } from "../helper/date.helper.js";
+import { transformDate, getWeekMonToSaturdayDates, formattedDate } from "../helper/date.helper.js";
 import { getAllWeeksInMonth } from "../helper/date.helper.js";
+import { handleStatusPresence } from "../helper/presence-status.helper.js";
+import { PdfService } from "./pdf.service.js";
 
 export class AttendanceService {
   static async getWeeklyAttendance(request) {
@@ -262,6 +264,8 @@ export class AttendanceService {
     };
   }
 
+  static async printStudentWeeklyAttendance(request) {}
+
   static async getStudentWeeklyAttendance(request) {
     const { classId, studentId, week, month, year, loggedUserRole } = request;
 
@@ -389,7 +393,310 @@ export class AttendanceService {
     delete weeklyAttendance.presentCount;
     delete weeklyAttendance.validDayCount;
 
+    const attdFormat = weeklyAttendance.attendance.map((d, index) => [
+      { text: String(index + 1), fontSize: "12" },
+      { text: formattedDate(d.date, true), fontSize: "12" },
+      { text: handleStatusPresence(d.status), fontSize: "12" },
+    ]);
+
+    const table = {
+      width: "100%",
+      alignment: "center",
+      style: "regular",
+      table: {
+        headerRows: 0,
+        body: [
+          [
+            { text: "No", bold: true, fontSize: "12" },
+            { text: "Tanggal", bold: true, fontSize: "12" },
+            { text: "Status", bold: true, fontSize: "12" },
+          ],
+          ...attdFormat,
+          [
+            { text: "Persentase Kehadiran", bold: true, colSpan: 2, alignment: "center", fontSize: "12" },
+            {},
+            { text: "80%", alignment: "center", fontSize: "12" },
+          ],
+        ],
+        widths: ["8%", "*", "*"],
+      },
+      layout: {
+        // paddingLeft: function(i, node) { return 2; },
+        // paddingRight: function(i, node) { return 4; },
+        paddingTop: function (i, node) {
+          return 8;
+        },
+        paddingBottom: function (i, node) {
+          return 8;
+        },
+      },
+    };
+
+    const PDfDefinition = {
+      //  pageMargins: [10,10,10,10],
+      pageSize: "A4",
+      styles: {
+        header: {
+          fontSize: 18,
+          bold: true,
+          margin: [0, 0, 0, 10],
+        },
+      },
+      content: [
+        {
+          text: "Data Absensi Siswa",
+          style: "header",
+          margin: [0, 4, 0, 30],
+          alignment: "center",
+        },
+        {
+          text: "Guru: Salsa",
+          margin: [0, 0, 0, 6],
+          fontSize: "12",
+        },
+        {
+          text: "Kelas: MIPA 2",
+          margin: [0, 0, 0, 6],
+          fontSize: "12",
+        },
+        {
+          text: "Nama: Asep",
+          fontSize: "12",
+          margin: [0, 0, 0, 6],
+        },
+        {
+          text: "Orang Tua: Budi",
+          fontSize: "12",
+          margin: [0, 0, 0, 6],
+        },
+        {
+          text: "Periode: 29 - 03 Juli",
+          fontSize: "12",
+          margin: [0, 0, 0, 50],
+        },
+        table,
+      ],
+    };
+
+    PdfService.generatePdf(PDfDefinition, "absensi-siswa.pdf");
+
     return weeklyAttendance;
+  }
+
+  static async downloadStudentWeeklyAttendance(request, response) {
+    const { classId, studentId, week, month, year } = request;
+
+    if (!week || !month || !year) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "invalid week, month, and year inputted!");
+    }
+
+    const listOfWeek = getWeekMonToSaturdayDates(Number(year), Number(month), Number(week));
+
+    const existedStudent = await StudentService.findStudentMustExist(studentId);
+
+    const existedClass = await ClassService.findClassMustExist(classId);
+
+    const existedStudentClass = await db.studentClass.findMany({
+      where: {
+        classId: existedClass.id,
+        studentId: existedStudent.id,
+      },
+      select: {
+        class: true,
+        student: {
+          select: {
+            id: true,
+            nisn: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!existedStudentClass) {
+      throw new APIError(API_STATUS_CODE.BAD_REQUEST, "Student not found in the class!");
+    }
+
+    const attendances = await db.attendance.findMany({
+      orderBy: [
+        {
+          student: {
+            name: "asc",
+          },
+        },
+      ],
+      where: {
+        studentId: existedStudent.id,
+        classId: existedStudentClass.id,
+        date: {
+          gte: listOfWeek[0],
+          lte: listOfWeek[listOfWeek.length - 1],
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+        date: true,
+        student: {
+          select: {
+            id: true,
+            nisn: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    const attendanceMap = new Map(attendances.map((att) => [`${att.student.id}-${att.date.toISOString().split("T")[0]}`, att]));
+
+    // Prepare the final JSON structure
+    const weeklyAttendance = {
+      teacher: {
+        id: existedClass?.teacher?.id || null,
+        name: existedClass?.teacher?.name || null,
+      },
+      class: {
+        id: existedClass?.id || null,
+        name: existedClass?.name || null,
+      },
+      attendance: [],
+      percentagePresent: 0,
+      presentCount: 0, // Temporary property to calculate percentagePresent
+      validDayCount: 0, // Temporary property to calculate percentagePresent
+    };
+
+    // Iterate over the list of dates in the week
+    listOfWeek.forEach((date) => {
+      // Find the student in the current week and update their attendance
+      const attendanceForDay = [];
+      const key = `${existedStudent.id}-${date.toISOString().split("T")[0]}`;
+      const status = attendanceMap.get(key)?.status;
+
+      // Find the stdClass in the current week and update their attendance
+      if (attendanceMap.has(key)) {
+        if (status !== "HOLIDAY") {
+          weeklyAttendance.validDayCount++;
+          if (status === "PRESENT") {
+            weeklyAttendance.presentCount++;
+          }
+          attendanceForDay.push({
+            date: date.toISOString().split("T")[0],
+            status,
+          });
+        } else {
+          attendanceForDay.push({
+            date: date.toISOString().split("T")[0],
+            status: "HOLIDAY",
+          });
+        }
+      } else {
+        weeklyAttendance.validDayCount++;
+        attendanceForDay.push({
+          date: date.toISOString().split("T")[0],
+          status: "ABSENT",
+        });
+      }
+
+      weeklyAttendance.attendance.push(...attendanceForDay);
+    });
+
+    // After processing all attendance data, calculate the percentagePresent for each student
+    if (weeklyAttendance.validDayCount > 0) {
+      weeklyAttendance.percentagePresent = Number((weeklyAttendance.presentCount / weeklyAttendance.validDayCount) * 100).toFixed(
+        2
+      );
+    }
+    // Remove the temporary presentCount and validDayCount properties
+    delete weeklyAttendance.presentCount;
+    delete weeklyAttendance.validDayCount;
+
+    const attdFormat = weeklyAttendance.attendance.map((d, index) => [
+      { text: String(index + 1), fontSize: "12" },
+      { text: formattedDate(d.date, true), fontSize: "12" },
+      { text: handleStatusPresence(d.status), fontSize: "12" },
+    ]);
+
+    // Create the PDF content
+    const table = {
+      width: "100%",
+      alignment: "center",
+      style: "regular",
+      table: {
+        headerRows: 0,
+        body: [
+          [
+            { text: "No", bold: true, fontSize: "12" },
+            { text: "Tanggal", bold: true, fontSize: "12" },
+            { text: "Status", bold: true, fontSize: "12" },
+          ],
+          ...attdFormat,
+          [
+            { text: "Persentase Kehadiran", bold: true, colSpan: 2, alignment: "center", fontSize: "12" },
+            {},
+            { text: "80%", alignment: "center", fontSize: "12" },
+          ],
+        ],
+        widths: ["8%", "*", "*"],
+      },
+      layout: {
+        // paddingLeft: function(i, node) { return 2; },
+        // paddingRight: function(i, node) { return 4; },
+        paddingTop: function (i, node) {
+          return 8;
+        },
+        paddingBottom: function (i, node) {
+          return 8;
+        },
+      },
+    };
+
+    const PDfDefinition = {
+      //  pageMargins: [10,10,10,10],
+      pageSize: "A4",
+      styles: {
+        header: {
+          fontSize: 18,
+          bold: true,
+          margin: [0, 0, 0, 10],
+        },
+      },
+      content: [
+        {
+          text: "Data Absensi Siswa",
+          style: "header",
+          margin: [0, 4, 0, 30],
+          alignment: "center",
+        },
+        {
+          text: "Guru: Salsa",
+          margin: [0, 0, 0, 6],
+          fontSize: "12",
+        },
+        {
+          text: "Kelas: MIPA 2",
+          margin: [0, 0, 0, 6],
+          fontSize: "12",
+        },
+        {
+          text: "Nama: Asep",
+          fontSize: "12",
+          margin: [0, 0, 0, 6],
+        },
+        {
+          text: "Orang Tua: Budi",
+          fontSize: "12",
+          margin: [0, 0, 0, 6],
+        },
+        {
+          text: "Periode: 29 - 03 Juli",
+          fontSize: "12",
+          margin: [0, 0, 0, 50],
+        },
+        table,
+      ],
+    };
+
+    return await PdfService.sendPdf(PDfDefinition, "absensi-siswa.pdf", response);
   }
 
   static async getStudentMonthlyAttendance(request) {

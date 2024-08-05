@@ -52,6 +52,21 @@ export class AttendanceController {
       next(error);
     }
   }
+  static async downloadStudentWeeklyAttendance(req, res, next) {
+    try {
+      const getStudentWeeklyAttendance = {
+        classId: req?.params?.classId ? Number(req.params.classId) : null,
+        studentId: req?.params?.studentId ? Number(req?.params?.studentId) : null,
+        year: req?.query?.year ? Number(req.query.year) : null,
+        month: req?.query?.month ? Number(req.query.month) : null,
+        week: req?.query?.week ? Number(req.query.week) : null,
+      };
+
+      return await AttendanceService.downloadStudentWeeklyAttendance(getStudentWeeklyAttendance, res);
+    } catch (error) {
+      next(error);
+    }
+  }
   static async getStudentMonthlyAttendance(req, res, next) {
     try {
       const getStudentMonthlyAttendanceRequest = {

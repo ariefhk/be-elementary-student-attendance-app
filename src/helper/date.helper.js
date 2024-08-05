@@ -1,3 +1,5 @@
+import { DAY_STR, MONTH_STR } from "../constants/date.js";
+
 export function getWeekMonToSaturdayDates(year, month, week) {
   let firstDay = new Date(Date.UTC(year, month - 1, 1)); // Use UTC to prevent timezone issues
 
@@ -107,13 +109,15 @@ export function getAllWeeksInMonth(year, month) {
   return weeks;
 }
 
-// const allWeek = getAllWeeksInMonth(2024, 2);
-// const formattedAllWeek = allWeek.map((week) => {
-//   return {
-//     week: week.numOfTheWeek,
-//     startDate: week.week[0],
-//     endDate: week.week[week.week.length - 1],
-//   };
-// });
+export const formattedDate = (dates, isNeedYear = false) => {
+  const date = new Date(dates);
 
-// console.log(formattedAllWeek);
+  // Get the day and month strings
+  const day = DAY_STR[date.getDay()];
+
+  // Get the month string
+  const month = MONTH_STR[date.getMonth()];
+
+  // Return the formatted date string
+  return isNeedYear ? ` ${day}, ${date.getDate()} ${month} ${date.getFullYear()}` : `${date.getDate()} ${month}, ${day}`;
+};
