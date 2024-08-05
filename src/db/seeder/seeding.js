@@ -76,6 +76,7 @@ const getSpecificUser = async (email) => {
 const deleteAllUser = async () => {
   await db.parent.deleteMany();
   await db.teacher.deleteMany();
+  await db.admin.deleteMany();
   await db.user.deleteMany();
 };
 
