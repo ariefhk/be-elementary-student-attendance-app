@@ -16,6 +16,17 @@ export class StudentClassController {
       next(error);
     }
   }
+  static async downdloadStudentInClass(req, res, next) {
+    try {
+      const findStudentInClassRequest = {
+        classId: req?.params?.classId ? Number(req.params.classId) : null,
+      };
+
+      return await StudentClassService.downloadStudendInClass(findStudentInClassRequest, res);
+    } catch (error) {
+      next(error);
+    }
+  }
   static async findClassesOfStudent(req, res, next) {
     try {
       const findClassesOfStudentRequest = {

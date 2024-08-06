@@ -4,6 +4,7 @@ import { API_STATUS_CODE } from "../helper/status-code.helper.js";
 import { checkAllowedRole, ROLE } from "../helper/check-role.helper.js";
 import { ClassService } from "./class.service.js";
 import { StudentService } from "./student.service.js";
+import { PdfService } from "./pdf.service.js";
 
 function toStudentInClassJSON(
   classes,
@@ -153,6 +154,122 @@ export class StudentClassService {
     return toStudentInClassJSON(existedClass, existedStudent, {
       isWithStudent: true,
     });
+  }
+
+  static async downloadStudendInClass(request, response) {
+    const { classId } = request;
+
+    // Check if class is existed
+    const existedClass = await ClassService.findClassMustExist(classId, {
+      isWithTeacher: true,
+    });
+
+    // Check if student is existed
+    const existedStudent = await db.studentClass.findMany({
+      where: {
+        classId: existedClass.id,
+      },
+      include: {
+        student: {
+          include: {
+            parent: true,
+          },
+        },
+      },
+    });
+
+    const studentInClass = toStudentInClassJSON(existedClass, existedStudent, {
+      isWithStudent: true,
+    });
+
+    const formattedStudentss = studentInClass.students.map((item, index) => {
+      return [
+        { text: index + 1, alignment: "center", fontSize: "12" },
+        { text: item.nisn, alignment: "center", fontSize: "12" },
+        { text: item.name, alignment: "center", fontSize: "12" },
+        { text: item.gender, alignment: "center", fontSize: "12" },
+        { text: item.parent.name, alignment: "center", fontSize: "12" },
+      ];
+    });
+
+    const table = {
+      width: "100%",
+      style: "regular",
+      table: {
+        headerRows: 0,
+        widths: ["8%", "20%", "*", "*", "*"],
+        body: [
+          [
+            { text: "No", bold: true, fontSize: 12, alignment: "center", margin: [0, 5, 0, 5] },
+            { text: "Nisn", bold: true, fontSize: 12, alignment: "center", margin: [0, 5, 0, 5] },
+            { text: "Nama", bold: true, fontSize: 12, alignment: "center", margin: [0, 5, 0, 5] },
+            { text: "Jenis Kelamin", bold: true, fontSize: 12, alignment: "center", margin: [0, 5, 0, 5] },
+            { text: "Orang Tua", bold: true, fontSize: 12, alignment: "center", margin: [0, 5, 0, 5] },
+          ],
+          ...formattedStudentss,
+        ],
+      },
+      layout: {
+        // paddingLeft: function(i, node) { return 2; },
+        // paddingRight: function(i, node) { return 2; },
+        paddingTop: function (i, node) {
+          return 2;
+        },
+        paddingBottom: function (i, node) {
+          return 2;
+        },
+      },
+    };
+
+    const PdfDefinition = {
+      pageSize: "A4",
+      styles: {
+        header: {
+          fontSize: 18,
+          bold: true,
+          margin: [0, 0, 0, 10],
+        },
+        subheader: {
+          fontSize: 16,
+          bold: true,
+          margin: [0, 10, 0, 5],
+        },
+        tableExample: {
+          margin: [0, 5, 0, 15],
+        },
+        tableHeader: {
+          bold: true,
+          fontSize: 13,
+          color: "black",
+        },
+      },
+      content: [
+        {
+          text: `Daftar Siswa Kelas ${existedClass.name}`,
+          style: "header",
+          margin: [0, 4, 0, 30],
+          alignment: "center",
+        },
+        {
+          text: `Guru: ${existedClass.teacher.name}`,
+          margin: [0, 0, 0, 6],
+          fontSize: "12",
+        },
+        {
+          text: `Kelas ${existedClass.name}`,
+          margin: [0, 0, 0, 6],
+          fontSize: "12",
+        },
+        {
+          text: `Jumlah Siswa: ${studentInClass.studentCount}`,
+          fontSize: "12",
+          margin: [0, 0, 0, 50],
+        },
+
+        table,
+      ],
+    };
+    return await PdfService.sendPdf(PdfDefinition, `Data Siswa Kelas ${existedClass.name}.pdf`, response);
   }
 
   static async findClassesOfStudent(request) {

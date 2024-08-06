@@ -79,10 +79,6 @@ privateRouter.post(studentApiPrefix, authMiddleware, StudentController.create);
 
 // ATTENDANCE ROUTE
 privateRouter.get(
-  attendanceApiPrefix + "/class/:classId/weekly/student/:studentId/download",
-  AttendanceController.downloadStudentWeeklyAttendance
-);
-privateRouter.get(
   attendanceApiPrefix + "/class/:classId/monthly/student/:studentId",
   authMiddleware,
   AttendanceController.getStudentMonthlyAttendance
