@@ -9,7 +9,7 @@ import { AttendanceController } from "../controller/attendance.controller.js";
 const publicRouter = express.Router();
 
 // HELLO ROUTE
-publicRouter.get("/", rateLimiterMiddleware, HelloController.sayHello);
+publicRouter.get("/api", rateLimiterMiddleware, HelloController.sayHello);
 
 // AUTH ROUTE
 publicRouter.post(authApiPrefix + "/login", rateLimiterMiddleware, UserController.login);

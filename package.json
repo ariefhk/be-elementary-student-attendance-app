@@ -1,16 +1,16 @@
 {
-  "name": "pnpm-express-template",
+  "name": "be-elementary-student-attendance-app",
   "version": "1.0.0",
   "description": "",
   "type": "module",
   "main": ".src/main.js",
   "scripts": {
-    "postinstall": "pnpm dlx prisma generate",
+    "postinstall": "npm run db:push:seed",
     "start": "node ./src/main.js",
     "dev": "nodemon ./src/main.js",
-    "db:studio": "pnpm dlx prisma studio",
-    "db:push": "pnpm  dlx prisma db push --force-reset && pnpm dlx prisma db push",
-    "db:push:seed": "pnpm db:push && pnpm db:seed",
+    "db:studio": "npx prisma studio",
+    "db:push": "npx prisma db push --force-reset && npx prisma db push",
+    "db:push:seed": "npm run db:push && npm run db:seed",
     "db:seed": "node ./src/db/seeder/seeding.js",
     "test": "jest -i"
   },
